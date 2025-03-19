@@ -1,0 +1,11 @@
+openai 
+fastapi 
+scipy 
+tenacity
+tiktoken
+termcolor
+uvicorn
+pydantic
+python-dotenv
+groq
+jigsawstack
