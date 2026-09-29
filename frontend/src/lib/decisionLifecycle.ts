@@ -19,6 +19,7 @@ export class DecisionLifecycle {
   }
 
   schedule(requestId: number, callback: () => void, delayMs = 250): void {
+    if (!this.isCurrent(requestId)) return;
     if (this.timer !== null) clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       this.timer = null;

@@ -14,6 +14,7 @@ async function main() {
   lifecycle.schedule(oldRequest.requestId, () => events.push('old-edit'), 5);
   const newRequest = lifecycle.begin();
   lifecycle.schedule(newRequest.requestId, () => events.push('new-edit'), 5);
+  lifecycle.schedule(oldRequest.requestId, () => events.push('stale-retry'), 5);
   await wait(15);
   assert.deepEqual(events, ['new-edit'], 'an edited draft must invalidate the old debounce');
 
