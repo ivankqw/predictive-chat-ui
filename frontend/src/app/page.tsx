@@ -259,12 +259,17 @@ export default function Home() {
     }
     setDecisionState('loading');
     setDecisionError('');
-    lifecycle.schedule(requestId, async () => {
+    const attemptDecision = async (attempt: number) => {
       if (!lifecycle.isCurrent(requestId) || !predictionEnabled) return;
       const startedAt = performance.now();
       try {
         const response = await fetch('/api/decision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, request_id: requestId }), signal: controller.signal });
-        if (!response.ok) throw new Error(response.status === 429 ? 'Decision model is warming or busy. Try again shortly.' : `Decision service returned ${response.status}.`);
+        if (response.status === 429 && attempt < 3) {
+          setDecisionState('loading');
+          lifecycle.schedule(requestId, () => { void attemptDecision(attempt + 1); }, 1000 * (2 ** attempt));
+          return;
+        }
+        if (!response.ok) throw new Error(response.status === 429 ? 'Decision model is still warming or busy after retries. Try again shortly.' : `Decision service returned ${response.status}.`);
         const data = parseDecision(await response.json(), requestId);
         if (!lifecycle.isCurrent(requestId)) return;
         setPrediction(data);
@@ -277,7 +282,8 @@ export default function Home() {
         setPrediction(null);
         setRoundtripMs(null);
       }
-    }, 250);
+    };
+    lifecycle.schedule(requestId, () => { void attemptDecision(0); }, 250);
     return () => lifecycle.invalidate();
   }, [draft, predictionEnabled, compositionTick]);
 
@@ -345,7 +351,7 @@ export default function Home() {
         <div className="workspace-grid">
           <section className="composer-column">
             <div className="intro-block"><p className="eyebrow">A quieter way to start</p><h1>Put the thought down.<br /><em>Pick up the right tool.</em></h1><p className="intro-copy">Write what is on your mind. Predictive workspace suggests a useful starting point before you send anything.</p></div>
-            <div className="composer-card"><div className="composer-label"><span>What are you working on?</span><span className="character-hint">{draft.length > 0 ? `${draft.length}/600 characters` : 'Your draft stays here'}</span></div><textarea maxLength={600} ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onCompositionStart={() => { composingRef.current = true; }} onCompositionEnd={() => { composingRef.current = false; setCompositionTick((tick) => tick + 1); }} placeholder="Try: remind me to compare the two offers…" rows={6} aria-label="Describe what you want to work on" /><div className="composer-footer"><span className="privacy-note"><span className="lock-mark">◎</span> Nothing is sent until you choose</span><div className="composer-actions">{draft && <button className="clear-button" onClick={() => { setDraft(''); inputRef.current?.focus(); }}>Clear</button>}<button className="button primary send-button" onClick={continueDraft} disabled={!draft.trim() || chatBusy}>{chatBusy ? <LoaderCircle className="spin" size={16} /> : <ArrowUpRight size={15} />}{prediction && topIntent && !prediction.abstained ? 'Open suggestion' : 'Choose a tool'}</button></div></div></div>
+            <div className="composer-card"><div className="composer-label"><span>What are you working on?</span><span className="character-hint">{draft.length > 0 ? `${draft.length}/600 characters` : 'Your draft stays here'}</span></div><textarea maxLength={600} ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onCompositionStart={() => { composingRef.current = true; }} onCompositionEnd={() => { composingRef.current = false; setCompositionTick((tick) => tick + 1); }} placeholder="Try: remind me to compare the two offers…" rows={6} aria-label="Describe what you want to work on" /><div className="composer-footer"><span className="privacy-note"><span className="lock-mark">◎</span> Local prediction receives this draft while you type</span><div className="composer-actions">{draft && <button className="clear-button" onClick={() => { setDraft(''); inputRef.current?.focus(); }}>Clear</button>}<button className="button primary send-button" onClick={continueDraft} disabled={!draft.trim() || chatBusy}>{chatBusy ? <LoaderCircle className="spin" size={16} /> : <ArrowUpRight size={15} />}{prediction && topIntent && !prediction.abstained ? 'Open suggestion' : 'Choose a tool'}</button></div></div></div>
             <div className="examples"><span className="examples-label">Start with an example</span><div className="example-row"><button onClick={() => setDraft('Plan a team offsite next Thursday from 10am to 4pm')}>Plan a team offsite</button><button onClick={() => setDraft('Compare these two job offers on pay, growth, and location')}>Compare two offers</button><button onClick={() => setDraft('Write a note to Sam asking to move our catch-up')}>Draft a note</button></div></div>
             <div className="optional-chat"><button className="optional-chat-toggle" onClick={() => setChatOpen((open) => !open)}>{chatOpen ? 'Hide optional assistant chat' : 'Optional: ask the assistant'}</button>{chatOpen && <div className="optional-chat-panel"><p>This separate chat route may require its own provider. It does not run the local tools.</p><button className="button secondary" onClick={sendToChat} disabled={!draft.trim() || chatBusy}>{chatBusy ? <LoaderCircle className="spin" size={15} /> : <Send size={15} />} Send this draft</button></div>}</div>
             {chatError && <p className="inline-error" role="alert">The assistant is unavailable right now. Your draft is still here. <span>{chatError}</span></p>}
