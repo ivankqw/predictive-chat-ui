@@ -44,3 +44,5 @@ yarn-error.log*
 .turbo
 
 .cursor-instructions
+.venv-*/
+*.tsbuildinfo

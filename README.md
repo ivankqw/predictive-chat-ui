@@ -1,78 +1,50 @@
-# Vibes Chat Interface
+# Predictive workspace
 
-This project is a dynamic prompt UI chat interface that aims to create a more "vibey" and fluid user experience.
+A chat composer that suggests a useful tool while you type. The available tools are an event draft, checklist, comparison table, and message draft.
 
-## Project Structure
+This revives a small-model hackathon project. The original used Groq to generate JSON for scheduling intent and event details. This experiment uses a local Laya decision model to select a tool. The tools themselves are ordinary editable UI.
 
-- `vibes-chat-interface`: Next.js frontend 
-- `vibes-server`: FastAPI backend
+## Run locally
 
-## Features
+Use Node.js 20.9 or newer and Python 3.12. The repository pins 3.12.13; this experiment was tested with the installed 3.12.7 interpreter.
 
-- Basic chat interface with message history
-- Real-time intent detection as the user types
-- Dynamic calendar event form that appears when scheduling intent is detected
-- Integration with Groq LLM API for chat and intent detection
+Start the decision service:
 
-## Setup Instructions
+```bash
+cd server
+python3.12 -m venv .venv-decision
+.venv-decision/bin/python -m pip install -r requirements-decision.txt
+.venv-decision/bin/python decision_app.py
+```
 
-### Backend Setup (vibes-server)
+In another terminal, start the frontend:
 
-1. Navigate to the backend directory:
-   ```
-   cd vibes-server
-   ```
+```bash
+cd frontend
+npm ci
+npm run dev -- --port 3014
+```
 
-2. Create a virtual environment (optional but recommended):
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+Open http://localhost:3014. The frontend calls the local service at `http://127.0.0.1:8014/api/decision`. Set `DECISION_BACKEND_URL` to override that full endpoint URL.
 
-3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+The first prediction downloads and loads the pinned model. Later predictions reuse it. Model files are cached by Hugging Face. No API key is needed. After the download, decision inference runs locally. The frontend sends your draft to your local backend.
 
-4. Create a `.env` file:
-   ```
-   cp .env.example .env
-   ```
-   Update the `.env` file with your actual API keys if needed.
+## What the model does
 
-5. Start the backend server:
-   ```
-   python main.py
-   ```
-   The server will run on http://localhost:8000
+Laya chooses one label: `calendar`, `checklist`, `compare`, `draft_message`, or `none`. The server applies a declared score and margin threshold before offering a suggestion. These scores have not been calibrated on this task.
 
-### Frontend Setup (vibes-chat-interface)
+A suggestion does not execute an action. Open or dismiss it, or choose a tool yourself. Tools keep your edits independently of new predictions. Event files and copied text require explicit clicks. The app does not send messages, write to a calendar account, or invent comparison facts.
 
-1. Navigate to the frontend directory:
-   ```
-   cd vibes-chat-interface
-   ```
+The model does not generate the form, populate missing event details, or write message prose. Manual controls remain available if inference fails.
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+## Jev and System One
 
-3. Start the development server:
-   ```
-   npm run dev
-   ```
-   The frontend will run on http://localhost:3000
+[Jev](https://docs.typesafe.ai/concepts/system-one) prompted this experiment. It returns bounded decisions rather than generated prose. We do not have Jev access, so this repository uses [Laya](https://github.com/NandhaKishorM/laya), an available open-weight decision model. This is not a Jev integration or a claim of equivalent quality, training, or speed.
 
-## How It Works
+Development probes found unwanted suggestions for explicit negations. A high score does not guarantee that a tool is appropriate. Treat this as an experiment in predictive interaction, not an autonomous action system.
 
-1. As the user types in the chat input, the text is sent to the backend for intent detection
-2. If the system detects that the user is trying to schedule a calendar event (with high confidence), a calendar form appears
-3. The form is progressively filled with details as they are detected from the user's input
-4. The user can continue typing to add more details or send the message to get a response from the assistant
+See [the decision service documentation](server/README.md) for the pinned checkpoint, API, tests, and limitations. Evaluation evidence is recorded under `docs/experiment/`.
 
-## Future Features
+## Original chat backend
 
-- More intent types beyond calendar events
-- More interactive UI elements based on detected intents
-- "Vibey" flow state interactions with animations
+`server/main.py` and the older frontend chat route remain for reference and optional Groq-backed chat. They are separate from the local decision service. Their historical model configuration has not been verified against the current Groq API. The predictive workspace does not need that service.

@@ -1,0 +1,152 @@
+[
+  {
+    "id": 1,
+    "text": "Schedule lunch with Mei next Thursday at 12:30",
+    "expected": "calendar"
+  },
+  {
+    "id": 2,
+    "text": "Block an hour for a design review tomorrow afternoon",
+    "expected": "calendar"
+  },
+  {
+    "id": 3,
+    "text": "Add a dentist appointment to my calendar for 6 October",
+    "expected": "calendar"
+  },
+  {
+    "id": 4,
+    "text": "Book some time for the team to meet on Friday",
+    "expected": "calendar"
+  },
+  {
+    "id": 5,
+    "text": "Turn these errands into a checklist: collect keys, buy milk, return parcel",
+    "expected": "checklist"
+  },
+  {
+    "id": 6,
+    "text": "I need a packing list for a weekend camping trip",
+    "expected": "checklist"
+  },
+  {
+    "id": 7,
+    "text": "Make a task list for launching the website",
+    "expected": "checklist"
+  },
+  {
+    "id": 8,
+    "text": "Create a grocery checklist with eggs, rice and coffee",
+    "expected": "checklist"
+  },
+  {
+    "id": 9,
+    "text": "Compare the MacBook Air and ThinkPad for battery life and weight",
+    "expected": "compare"
+  },
+  {
+    "id": 10,
+    "text": "Put renting and buying in a side-by-side comparison table",
+    "expected": "compare"
+  },
+  {
+    "id": 11,
+    "text": "Help me weigh train versus flight for this trip",
+    "expected": "compare"
+  },
+  {
+    "id": 12,
+    "text": "Make a table comparing PostgreSQL, SQLite and DuckDB",
+    "expected": "compare"
+  },
+  {
+    "id": 13,
+    "text": "Draft an email asking my landlord to fix the leaking tap",
+    "expected": "draft_message"
+  },
+  {
+    "id": 14,
+    "text": "Write a polite reply declining the dinner invitation",
+    "expected": "draft_message"
+  },
+  {
+    "id": 15,
+    "text": "Help me compose a message to thank the interview panel",
+    "expected": "draft_message"
+  },
+  {
+    "id": 16,
+    "text": "Write a short note to the team about the release delay",
+    "expected": "draft_message"
+  },
+  {
+    "id": 17,
+    "text": "What is the capital of Portugal?",
+    "expected": "none"
+  },
+  {
+    "id": 18,
+    "text": "I had a meeting yesterday and it went well",
+    "expected": "none"
+  },
+  {
+    "id": 19,
+    "text": "Do not schedule anything, I am only thinking out loud",
+    "expected": "none"
+  },
+  {
+    "id": 20,
+    "text": "Why do people keep checklists?",
+    "expected": "none"
+  },
+  {
+    "id": 21,
+    "text": "What is a comparison table?",
+    "expected": "none"
+  },
+  {
+    "id": 22,
+    "text": "Can you explain how email works?",
+    "expected": "none"
+  },
+  {
+    "id": 23,
+    "text": "I want to",
+    "expected": "none"
+  },
+  {
+    "id": 24,
+    "text": "Schedule",
+    "expected": "none"
+  },
+  {
+    "id": 25,
+    "text": "Maybe we could",
+    "expected": "none"
+  },
+  {
+    "id": 26,
+    "text": "I do not want a draft email",
+    "expected": "none"
+  },
+  {
+    "id": 27,
+    "text": "Forget the meeting; make me a checklist for the launch instead",
+    "expected": "checklist"
+  },
+  {
+    "id": 28,
+    "text": "Actually skip the checklist and draft a note to Sam",
+    "expected": "draft_message"
+  },
+  {
+    "id": 29,
+    "text": "Do not send anything. Just draft an email to Jo",
+    "expected": "draft_message"
+  },
+  {
+    "id": 30,
+    "text": "Never mind the comparison. Put the review on my calendar tomorrow",
+    "expected": "calendar"
+  }
+]
