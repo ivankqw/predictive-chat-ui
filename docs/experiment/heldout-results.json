@@ -1,0 +1,681 @@
+{
+  "method": "Frozen synthetic authored cases, single pass, no prompt tuning on this set. Not representative of production users or Jev. Service warmed separately before evaluation. HTTP excludes frontend debounce/render.",
+  "platform": "macOS-27.0-arm64-arm-64bit-Mach-O",
+  "summary": {
+    "count": 30,
+    "raw_top1_correct": 18,
+    "gated_correct": 17,
+    "suggestions": 17,
+    "correct_suggestions": 12,
+    "actionable_cases": 20,
+    "correct_actionable_suggestions": 12,
+    "none_cases": 10,
+    "unwanted_suggestions": 5,
+    "http_p50_ms": 85.483,
+    "http_p95_ms": 292.472,
+    "model_p50_ms": 83.82050000000001,
+    "multiclass_brier_raw": 0.562079333
+  },
+  "rows": [
+    {
+      "id": 1,
+      "text": "Schedule lunch with Mei next Thursday at 12:30",
+      "expected": "calendar",
+      "response": {
+        "request_id": 1,
+        "intent": "calendar",
+        "scores": {
+          "calendar": 0.5116,
+          "checklist": 0.047,
+          "compare": 0.0297,
+          "draft_message": 0.1273,
+          "none": 0.2844
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 215.809,
+        "abstained": false
+      },
+      "raw_choice": "calendar",
+      "http_ms": 227.428
+    },
+    {
+      "id": 2,
+      "text": "Block an hour for a design review tomorrow afternoon",
+      "expected": "calendar",
+      "response": {
+        "request_id": 2,
+        "intent": "calendar",
+        "scores": {
+          "calendar": 0.6279,
+          "checklist": 0.0818,
+          "compare": 0.0264,
+          "draft_message": 0.154,
+          "none": 0.1099
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 82.02,
+        "abstained": false
+      },
+      "raw_choice": "calendar",
+      "http_ms": 84.283
+    },
+    {
+      "id": 3,
+      "text": "Add a dentist appointment to my calendar for 6 October",
+      "expected": "calendar",
+      "response": {
+        "request_id": 3,
+        "intent": "calendar",
+        "scores": {
+          "calendar": 0.9045,
+          "checklist": 0.0111,
+          "compare": 0.0065,
+          "draft_message": 0.0197,
+          "none": 0.0582
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 92.01,
+        "abstained": false
+      },
+      "raw_choice": "calendar",
+      "http_ms": 93.748
+    },
+    {
+      "id": 4,
+      "text": "Book some time for the team to meet on Friday",
+      "expected": "calendar",
+      "response": {
+        "request_id": 4,
+        "intent": "calendar",
+        "scores": {
+          "calendar": 0.8719,
+          "checklist": 0.0264,
+          "compare": 0.0105,
+          "draft_message": 0.0484,
+          "none": 0.0428
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 82.711,
+        "abstained": false
+      },
+      "raw_choice": "calendar",
+      "http_ms": 84.651
+    },
+    {
+      "id": 5,
+      "text": "Turn these errands into a checklist: collect keys, buy milk, return parcel",
+      "expected": "checklist",
+      "response": {
+        "request_id": 5,
+        "intent": "checklist",
+        "scores": {
+          "calendar": 0.131,
+          "checklist": 0.5825,
+          "compare": 0.0503,
+          "draft_message": 0.0946,
+          "none": 0.1417
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 95.45,
+        "abstained": false
+      },
+      "raw_choice": "checklist",
+      "http_ms": 97.521
+    },
+    {
+      "id": 6,
+      "text": "I need a packing list for a weekend camping trip",
+      "expected": "checklist",
+      "response": {
+        "request_id": 6,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.3841,
+          "checklist": 0.1176,
+          "compare": 0.0669,
+          "draft_message": 0.1255,
+          "none": 0.306
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 83.559,
+        "abstained": true
+      },
+      "raw_choice": "calendar",
+      "http_ms": 85.423
+    },
+    {
+      "id": 7,
+      "text": "Make a task list for launching the website",
+      "expected": "checklist",
+      "response": {
+        "request_id": 7,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.4438,
+          "checklist": 0.1502,
+          "compare": 0.0619,
+          "draft_message": 0.1558,
+          "none": 0.1884
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 478.305,
+        "abstained": true
+      },
+      "raw_choice": "calendar",
+      "http_ms": 479.988
+    },
+    {
+      "id": 8,
+      "text": "Create a grocery checklist with eggs, rice and coffee",
+      "expected": "checklist",
+      "response": {
+        "request_id": 8,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.3741,
+          "checklist": 0.1981,
+          "compare": 0.0687,
+          "draft_message": 0.1419,
+          "none": 0.2172
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 81.992,
+        "abstained": true
+      },
+      "raw_choice": "calendar",
+      "http_ms": 83.722
+    },
+    {
+      "id": 9,
+      "text": "Compare the MacBook Air and ThinkPad for battery life and weight",
+      "expected": "compare",
+      "response": {
+        "request_id": 9,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.2272,
+          "checklist": 0.0584,
+          "compare": 0.3738,
+          "draft_message": 0.1351,
+          "none": 0.2055
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 95.399,
+        "abstained": true
+      },
+      "raw_choice": "compare",
+      "http_ms": 97.282
+    },
+    {
+      "id": 10,
+      "text": "Put renting and buying in a side-by-side comparison table",
+      "expected": "compare",
+      "response": {
+        "request_id": 10,
+        "intent": "compare",
+        "scores": {
+          "calendar": 0.203,
+          "checklist": 0.0574,
+          "compare": 0.4627,
+          "draft_message": 0.1546,
+          "none": 0.1222
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 93.95,
+        "abstained": false
+      },
+      "raw_choice": "compare",
+      "http_ms": 95.83
+    },
+    {
+      "id": 11,
+      "text": "Help me weigh train versus flight for this trip",
+      "expected": "compare",
+      "response": {
+        "request_id": 11,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.3064,
+          "checklist": 0.0598,
+          "compare": 0.1296,
+          "draft_message": 0.1564,
+          "none": 0.3477
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 84.096,
+        "abstained": true
+      },
+      "raw_choice": "none",
+      "http_ms": 85.833
+    },
+    {
+      "id": 12,
+      "text": "Make a table comparing PostgreSQL, SQLite and DuckDB",
+      "expected": "compare",
+      "response": {
+        "request_id": 12,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.3264,
+          "checklist": 0.0943,
+          "compare": 0.1367,
+          "draft_message": 0.2053,
+          "none": 0.2373
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 87.019,
+        "abstained": true
+      },
+      "raw_choice": "calendar",
+      "http_ms": 89.001
+    },
+    {
+      "id": 13,
+      "text": "Draft an email asking my landlord to fix the leaking tap",
+      "expected": "draft_message",
+      "response": {
+        "request_id": 13,
+        "intent": "draft_message",
+        "scores": {
+          "calendar": 0.122,
+          "checklist": 0.0247,
+          "compare": 0.013,
+          "draft_message": 0.8149,
+          "none": 0.0253
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 97.703,
+        "abstained": false
+      },
+      "raw_choice": "draft_message",
+      "http_ms": 99.664
+    },
+    {
+      "id": 14,
+      "text": "Write a polite reply declining the dinner invitation",
+      "expected": "draft_message",
+      "response": {
+        "request_id": 14,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.358,
+          "checklist": 0.0766,
+          "compare": 0.0544,
+          "draft_message": 0.3025,
+          "none": 0.2086
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 74.748,
+        "abstained": true
+      },
+      "raw_choice": "calendar",
+      "http_ms": 76.448
+    },
+    {
+      "id": 15,
+      "text": "Help me compose a message to thank the interview panel",
+      "expected": "draft_message",
+      "response": {
+        "request_id": 15,
+        "intent": "draft_message",
+        "scores": {
+          "calendar": 0.0904,
+          "checklist": 0.0277,
+          "compare": 0.0117,
+          "draft_message": 0.8308,
+          "none": 0.0394
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 84.026,
+        "abstained": false
+      },
+      "raw_choice": "draft_message",
+      "http_ms": 85.861
+    },
+    {
+      "id": 16,
+      "text": "Write a short note to the team about the release delay",
+      "expected": "draft_message",
+      "response": {
+        "request_id": 16,
+        "intent": "draft_message",
+        "scores": {
+          "calendar": 0.281,
+          "checklist": 0.0955,
+          "compare": 0.0328,
+          "draft_message": 0.4889,
+          "none": 0.1018
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 86.45,
+        "abstained": false
+      },
+      "raw_choice": "draft_message",
+      "http_ms": 88.532
+    },
+    {
+      "id": 17,
+      "text": "What is the capital of Portugal?",
+      "expected": "none",
+      "response": {
+        "request_id": 17,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.3654,
+          "checklist": 0.0713,
+          "compare": 0.0529,
+          "draft_message": 0.1308,
+          "none": 0.3797
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 290.383,
+        "abstained": true
+      },
+      "raw_choice": "none",
+      "http_ms": 292.472
+    },
+    {
+      "id": 18,
+      "text": "I had a meeting yesterday and it went well",
+      "expected": "none",
+      "response": {
+        "request_id": 18,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.4654,
+          "checklist": 0.0434,
+          "compare": 0.022,
+          "draft_message": 0.056,
+          "none": 0.4133
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 81.154,
+        "abstained": true
+      },
+      "raw_choice": "calendar",
+      "http_ms": 82.796
+    },
+    {
+      "id": 19,
+      "text": "Do not schedule anything, I am only thinking out loud",
+      "expected": "none",
+      "response": {
+        "request_id": 19,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.3035,
+          "checklist": 0.0367,
+          "compare": 0.0211,
+          "draft_message": 0.1334,
+          "none": 0.5053
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 82.922,
+        "abstained": true
+      },
+      "raw_choice": "none",
+      "http_ms": 84.493
+    },
+    {
+      "id": 20,
+      "text": "Why do people keep checklists?",
+      "expected": "none",
+      "response": {
+        "request_id": 20,
+        "intent": "checklist",
+        "scores": {
+          "calendar": 0.0498,
+          "checklist": 0.8199,
+          "compare": 0.019,
+          "draft_message": 0.0201,
+          "none": 0.0912
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 75.497,
+        "abstained": false
+      },
+      "raw_choice": "checklist",
+      "http_ms": 77.17
+    },
+    {
+      "id": 21,
+      "text": "What is a comparison table?",
+      "expected": "none",
+      "response": {
+        "request_id": 21,
+        "intent": "compare",
+        "scores": {
+          "calendar": 0.1235,
+          "checklist": 0.0429,
+          "compare": 0.523,
+          "draft_message": 0.1259,
+          "none": 0.1846
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 83.899,
+        "abstained": false
+      },
+      "raw_choice": "compare",
+      "http_ms": 85.537
+    },
+    {
+      "id": 22,
+      "text": "Can you explain how email works?",
+      "expected": "none",
+      "response": {
+        "request_id": 22,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.2739,
+          "checklist": 0.0965,
+          "compare": 0.077,
+          "draft_message": 0.1772,
+          "none": 0.3755
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 75.399,
+        "abstained": true
+      },
+      "raw_choice": "none",
+      "http_ms": 77.466
+    },
+    {
+      "id": 23,
+      "text": "I want to",
+      "expected": "none",
+      "response": {
+        "request_id": 23,
+        "intent": "calendar",
+        "scores": {
+          "calendar": 0.5069,
+          "checklist": 0.0619,
+          "compare": 0.0585,
+          "draft_message": 0.1535,
+          "none": 0.2192
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 88.397,
+        "abstained": false
+      },
+      "raw_choice": "calendar",
+      "http_ms": 90.592
+    },
+    {
+      "id": 24,
+      "text": "Schedule",
+      "expected": "none",
+      "response": {
+        "request_id": 24,
+        "intent": "calendar",
+        "scores": {
+          "calendar": 0.5189,
+          "checklist": 0.054,
+          "compare": 0.0426,
+          "draft_message": 0.149,
+          "none": 0.2354
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 83.686,
+        "abstained": false
+      },
+      "raw_choice": "calendar",
+      "http_ms": 85.197
+    },
+    {
+      "id": 25,
+      "text": "Maybe we could",
+      "expected": "none",
+      "response": {
+        "request_id": 25,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.2901,
+          "checklist": 0.0761,
+          "compare": 0.0839,
+          "draft_message": 0.156,
+          "none": 0.3939
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 75.931,
+        "abstained": true
+      },
+      "raw_choice": "none",
+      "http_ms": 77.564
+    },
+    {
+      "id": 26,
+      "text": "I do not want a draft email",
+      "expected": "none",
+      "response": {
+        "request_id": 26,
+        "intent": "draft_message",
+        "scores": {
+          "calendar": 0.1539,
+          "checklist": 0.0481,
+          "compare": 0.032,
+          "draft_message": 0.6055,
+          "none": 0.1605
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 78.618,
+        "abstained": false
+      },
+      "raw_choice": "draft_message",
+      "http_ms": 80.463
+    },
+    {
+      "id": 27,
+      "text": "Forget the meeting; make me a checklist for the launch instead",
+      "expected": "checklist",
+      "response": {
+        "request_id": 27,
+        "intent": "checklist",
+        "scores": {
+          "calendar": 0.2072,
+          "checklist": 0.4595,
+          "compare": 0.0339,
+          "draft_message": 0.1579,
+          "none": 0.1415
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 85.522,
+        "abstained": false
+      },
+      "raw_choice": "checklist",
+      "http_ms": 87.246
+    },
+    {
+      "id": 28,
+      "text": "Actually skip the checklist and draft a note to Sam",
+      "expected": "draft_message",
+      "response": {
+        "request_id": 28,
+        "intent": "none",
+        "scores": {
+          "calendar": 0.1975,
+          "checklist": 0.2573,
+          "compare": 0.0391,
+          "draft_message": 0.284,
+          "none": 0.2221
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 81.705,
+        "abstained": true
+      },
+      "raw_choice": "draft_message",
+      "http_ms": 83.245
+    },
+    {
+      "id": 29,
+      "text": "Do not send anything. Just draft an email to Jo",
+      "expected": "draft_message",
+      "response": {
+        "request_id": 29,
+        "intent": "draft_message",
+        "scores": {
+          "calendar": 0.1344,
+          "checklist": 0.0313,
+          "compare": 0.0221,
+          "draft_message": 0.7242,
+          "none": 0.088
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 80.669,
+        "abstained": false
+      },
+      "raw_choice": "draft_message",
+      "http_ms": 82.217
+    },
+    {
+      "id": 30,
+      "text": "Never mind the comparison. Put the review on my calendar tomorrow",
+      "expected": "calendar",
+      "response": {
+        "request_id": 30,
+        "intent": "calendar",
+        "scores": {
+          "calendar": 0.5464,
+          "checklist": 0.0283,
+          "compare": 0.1542,
+          "draft_message": 0.0521,
+          "none": 0.2189
+        },
+        "provider": "laya",
+        "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+        "decision_ms": 83.742,
+        "abstained": false
+      },
+      "raw_choice": "calendar",
+      "http_ms": 85.429
+    }
+  ]
+}
