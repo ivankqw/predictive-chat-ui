@@ -1,12 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import {
   ArrowUpRight,
   CalendarDays,
   Check,
-  CheckSquare2,
   Copy,
   Download,
   FileText,
@@ -14,6 +12,7 @@ import {
   LoaderCircle,
   Minus,
   Plus,
+  RefreshCw,
   Send,
   Sparkles,
   Table2,
@@ -28,40 +27,21 @@ export interface Message {
   content: string;
 }
 
+interface StoredMessage extends Message {
+  id: string;
+}
+
 export type ToolKind = 'calendar' | 'checklist' | 'compare' | 'draft_message';
 type Intent = ToolKind | 'none';
 
 const toolMeta: Record<ToolKind, { label: string; icon: typeof CalendarDays; description: string }> = {
-  calendar: {
-    label: 'Event draft',
-    icon: CalendarDays,
-    description: 'Shape the details, then download an .ics file when you are ready.',
-  },
-  checklist: {
-    label: 'Checklist',
-    icon: ListChecks,
-    description: 'Turn the thought into a small, editable list you can copy.',
-  },
-  compare: {
-    label: 'Comparison',
-    icon: Table2,
-    description: 'Set up a neutral table for your own options and criteria.',
-  },
-  draft_message: {
-    label: 'Message draft',
-    icon: FileText,
-    description: 'Write and copy a message without sending anything.',
-  },
+  calendar: { label: 'Event draft', icon: CalendarDays, description: 'Edit the details, then download an .ics file.' },
+  checklist: { label: 'Checklist', icon: ListChecks, description: 'Turn the thought into an editable list.' },
+  compare: { label: 'Comparison', icon: Table2, description: 'Set up a table for the options and facts.' },
+  draft_message: { label: 'Message draft', icon: FileText, description: 'Write and copy a message without sending it.' },
 };
 
-const intentLabels: Record<Intent, string> = {
-  calendar: 'Event draft',
-  checklist: 'Checklist',
-  compare: 'Comparison',
-  draft_message: 'Message draft',
-  none: 'No tool',
-};
-
+const intentLabels: Record<Intent, string> = { calendar: 'Event draft', checklist: 'Checklist', compare: 'Comparison', draft_message: 'Message draft', none: 'No tool' };
 const scoreKeys: ToolKind[] = ['calendar', 'checklist', 'compare', 'draft_message'];
 
 interface DecisionResponse {
@@ -74,34 +54,11 @@ interface DecisionResponse {
   abstained: boolean;
 }
 
-interface CalendarDraft {
-  source: string;
-  title: string;
-  date: string;
-  startTime: string;
-  endTime: string;
-  location: string;
-  description: string;
-}
-
-interface ChecklistTask {
-  id: number;
-  text: string;
-  done: boolean;
-}
-
-interface CompareDraft {
-  options: string[];
-  criteria: string[];
-  cells: string[][];
-}
-
-interface MessageDraft {
-  source: string;
-  recipient: string;
-  subject: string;
-  body: string;
-}
+interface CalendarDraft { source: string; title: string; date: string; startTime: string; endTime: string; location: string; description: string }
+interface ChecklistTask { id: number; text: string; done: boolean }
+interface CompareDraft { options: string[]; criteria: string[]; cells: string[][] }
+interface MessageDraft { source: string; recipient: string; subject: string; body: string }
+interface ChatStatus { available: boolean; provider: string; model: string }
 
 const emptyCalendar = (source = ''): CalendarDraft => ({ source, title: '', date: '', startTime: '', endTime: '', location: '', description: '' });
 const emptyMessage = (source = ''): MessageDraft => ({ source, recipient: '', subject: '', body: '' });
@@ -111,37 +68,45 @@ function isIntent(value: unknown): value is Intent {
 }
 
 function parseDecision(value: unknown, requestId: number): DecisionResponse {
-  if (!value || typeof value !== 'object') throw new Error('Decision response was not an object.');
+  if (!value || typeof value !== 'object') throw new Error('Prediction response was not an object.');
   const candidate = value as Record<string, unknown>;
-  if (candidate.request_id !== requestId || !isIntent(candidate.intent)) throw new Error('Decision response did not match the current draft.');
-  if (typeof candidate.provider !== 'string' || typeof candidate.model !== 'string' || typeof candidate.decision_ms !== 'number' || typeof candidate.abstained !== 'boolean') throw new Error('Decision response is missing runtime details.');
-  if (!candidate.scores || typeof candidate.scores !== 'object') throw new Error('Decision response is missing scores.');
+  if (candidate.request_id !== requestId || !isIntent(candidate.intent)) throw new Error('Prediction did not match the current draft.');
+  if (typeof candidate.provider !== 'string' || typeof candidate.model !== 'string' || typeof candidate.decision_ms !== 'number' || typeof candidate.abstained !== 'boolean') throw new Error('Prediction response is missing runtime details.');
+  if (!candidate.scores || typeof candidate.scores !== 'object') throw new Error('Prediction response is missing scores.');
   const incomingScores = candidate.scores as Record<string, unknown>;
   const scores = {} as Record<Intent, number>;
   for (const key of scoreKeys) {
-    if (typeof incomingScores[key] !== 'number' || !Number.isFinite(incomingScores[key])) throw new Error('Decision response contains invalid scores.');
+    if (typeof incomingScores[key] !== 'number' || !Number.isFinite(incomingScores[key])) throw new Error('Prediction response contains invalid scores.');
     scores[key] = incomingScores[key] as number;
   }
   scores.none = typeof incomingScores.none === 'number' && Number.isFinite(incomingScores.none) ? incomingScores.none : 0;
   return { request_id: requestId, intent: candidate.intent, scores, provider: candidate.provider, model: candidate.model, decision_ms: candidate.decision_ms, abstained: candidate.abstained };
 }
 
+function escapeIcsText(value: string) {
+  return value.replaceAll('\\', '\\\\').replace(/\r?\n/g, '\\n').replaceAll(';', '\\;').replaceAll(',', '\\,');
+}
+
+function validateCalendar(draft: CalendarDraft) {
+  if (!draft.title.trim() || !draft.date || !draft.startTime || !draft.endTime) return 'Add a title, date, start time, and end time.';
+  if (draft.endTime <= draft.startTime) return 'End time must be after start time.';
+  return '';
+}
+
 function downloadCalendar(draft: CalendarDraft) {
+  const validationError = validateCalendar(draft);
+  if (validationError) throw new Error(validationError);
   const now = new Date();
   const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Predictive Workspace//EN',
-    'BEGIN:VEVENT',
+    'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Predictive Workspace//EN', 'BEGIN:VEVENT',
     `UID:${crypto.randomUUID()}@predictive-workspace`,
     `DTSTAMP:${formatIcsDate(now.toISOString().slice(0, 10), now.toISOString().slice(11, 16))}Z`,
     `DTSTART:${formatIcsDate(draft.date, draft.startTime)}`,
     `DTEND:${formatIcsDate(draft.date, draft.endTime)}`,
-    `SUMMARY:${draft.title.replaceAll('\n', ' ')}`,
-    ...(draft.location ? [`LOCATION:${draft.location.replaceAll('\n', ' ')}`] : []),
-    ...(draft.description ? [`DESCRIPTION:${draft.description.replaceAll('\n', '\\n')}`] : []),
-    'END:VEVENT',
-    'END:VCALENDAR',
+    `SUMMARY:${escapeIcsText(draft.title.trim())}`,
+    ...(draft.location ? [`LOCATION:${escapeIcsText(draft.location.trim())}`] : []),
+    ...(draft.description ? [`DESCRIPTION:${escapeIcsText(draft.description.trim())}`] : []),
+    'END:VEVENT', 'END:VCALENDAR',
   ];
   const blob = new Blob([`${lines.join('\r\n')}\r\n`], { type: 'text/calendar;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -154,34 +119,40 @@ function downloadCalendar(draft: CalendarDraft) {
 
 function useCopy() {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState(false);
   const copy = useCallback(async (text: string) => {
+    setCopied(false);
+    setCopyError(false);
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1600);
+      return true;
     } catch {
-      const fallback = document.createElement('textarea');
-      fallback.value = text;
-      fallback.style.position = 'fixed';
-      fallback.style.opacity = '0';
-      document.body.appendChild(fallback);
-      fallback.select();
-      const copiedWithFallback = document.execCommand('copy');
-      fallback.remove();
-      setCopied(copiedWithFallback);
-      if (copiedWithFallback) window.setTimeout(() => setCopied(false), 1600);
+      try {
+        const fallback = document.createElement('textarea');
+        fallback.value = text;
+        fallback.style.position = 'fixed';
+        fallback.style.opacity = '0';
+        document.body.appendChild(fallback);
+        fallback.select();
+        const copiedWithFallback = document.execCommand('copy');
+        fallback.remove();
+        setCopied(copiedWithFallback);
+        setCopyError(!copiedWithFallback);
+        if (copiedWithFallback) window.setTimeout(() => setCopied(false), 1600);
+        return copiedWithFallback;
+      } catch {
+        setCopyError(true);
+        return false;
+      }
     }
   }, []);
-  return { copied, copy };
+  return { copied, copyError, copy };
 }
 
 function Field({ label, value, onChange, placeholder, multiline = false, type = 'text' }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string; multiline?: boolean; type?: string }) {
-  return (
-    <label className="field">
-      <span>{label}</span>
-      {multiline ? <textarea value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} rows={4} /> : <input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />}
-    </label>
-  );
+  return <label className="field"><span>{label}</span>{multiline ? <textarea value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} rows={4} /> : <input type={type} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} />}</label>;
 }
 
 function ToolPanel({ tool, source, calendar, setCalendar, checklist, setChecklist, compare, setCompare, message, setMessage, onClose }: { tool: ToolKind; source: string; calendar: CalendarDraft; setCalendar: React.Dispatch<React.SetStateAction<CalendarDraft>>; checklist: ChecklistTask[]; setChecklist: React.Dispatch<React.SetStateAction<ChecklistTask[]>>; compare: CompareDraft; setCompare: React.Dispatch<React.SetStateAction<CompareDraft>>; message: MessageDraft; setMessage: React.Dispatch<React.SetStateAction<MessageDraft>>; onClose: () => void }) {
@@ -189,23 +160,30 @@ function ToolPanel({ tool, source, calendar, setCalendar, checklist, setChecklis
   const meta = toolMeta[tool];
   const Icon = meta.icon;
   const [copyNote, setCopyNote] = useState('');
-  const noteCopy = (text: string) => {
-    void copy.copy(text);
-    setCopyNote('Copied');
-    window.setTimeout(() => setCopyNote(''), 1600);
+  const [calendarNote, setCalendarNote] = useState('');
+  const noteCopy = async (text: string) => {
+    const copied = await copy.copy(text);
+    setCopyNote(copied ? 'Copied' : 'Copy failed. Select the text and copy it manually.');
+    window.setTimeout(() => setCopyNote(''), copied ? 1600 : 3000);
+  };
+  const handleCalendarDownload = () => {
+    try { downloadCalendar(calendar); setCalendarNote('Download started. Import the file into your calendar when ready.'); }
+    catch (error) { setCalendarNote(error instanceof Error ? error.message : 'Check the event details and try again.'); }
   };
   const checklistText = checklist.map((task) => `${task.done ? '[x]' : '[ ]'} ${task.text}`).join('\n');
   const comparisonText = [['', ...compare.options].join(' | '), ...compare.criteria.map((criterion, row) => [criterion, ...compare.options.map((_, column) => compare.cells[row]?.[column] || '')].join(' | '))].join('\n');
-  return (
-    <section className="tool-panel" aria-label={`${meta.label} tool`}>
-      <div className="tool-heading"><div className="tool-title-wrap"><span className="tool-icon"><Icon size={18} strokeWidth={1.8} /></span><div><p className="eyebrow">Local tool</p><h2>{meta.label}</h2></div></div><button className="icon-button" onClick={onClose} aria-label="Close tool"><X size={18} /></button></div>
-      {source && <p className="source-draft"><span>Source draft</span> {source}</p>}
-      {tool === 'calendar' && <div className="tool-content"><p className="tool-intro">Enter the details you want in the file. Nothing is added to a calendar.</p><div className="field-grid two-up"><Field label="Title" value={calendar.title} onChange={(title) => setCalendar((current) => ({ ...current, title }))} placeholder="Enter an event title" /><Field label="Date" value={calendar.date} onChange={(date) => setCalendar((current) => ({ ...current, date }))} placeholder="YYYY-MM-DD" type="date" /><Field label="Starts" value={calendar.startTime} onChange={(startTime) => setCalendar((current) => ({ ...current, startTime }))} placeholder="09:00" type="time" /><Field label="Ends" value={calendar.endTime} onChange={(endTime) => setCalendar((current) => ({ ...current, endTime }))} placeholder="10:00" type="time" /></div><Field label="Location (optional)" value={calendar.location} onChange={(location) => setCalendar((current) => ({ ...current, location }))} placeholder="Add a place or link" /><Field label="Notes (optional)" value={calendar.description} onChange={(description) => setCalendar((current) => ({ ...current, description }))} placeholder="Add context for the event" multiline /><div className="tool-actions"><button className="button primary" disabled={!calendar.title.trim() || !calendar.date || !calendar.startTime || !calendar.endTime} onClick={() => downloadCalendar(calendar)}><Download size={16} /> Download .ics</button><span className="action-note">Download only · no calendar access</span></div></div>}
-      {tool === 'checklist' && <div className="tool-content"><p className="tool-intro">Keep the list yours. Edit, reorder later, or copy it into another app.</p><div className="task-list">{checklist.map((task) => <div className={cn('task-row', task.done && 'is-done')} key={task.id}><button className="check-button" onClick={() => setChecklist((current) => current.map((item) => item.id === task.id ? { ...item, done: !item.done } : item))} aria-label={task.done ? 'Mark task open' : 'Mark task complete'}><Check size={15} /></button><input value={task.text} onChange={(event) => setChecklist((current) => current.map((item) => item.id === task.id ? { ...item, text: event.target.value } : item))} placeholder="Add a task" /><button className="icon-button subtle" onClick={() => setChecklist((current) => current.filter((item) => item.id !== task.id))} aria-label="Remove task"><Minus size={16} /></button></div>)}</div><button className="button quiet" onClick={() => setChecklist((current) => [...current, { id: Math.max(0, ...current.map((item) => item.id)) + 1, text: '', done: false }])}><Plus size={16} /> Add task</button><div className="tool-actions"><button className="button secondary" disabled={!checklist.some((task) => task.text.trim())} onClick={() => noteCopy(checklistText)}><Copy size={16} /> {copy.copied ? 'Copied' : 'Copy checklist'}</button>{copyNote && <span className="action-note">{copyNote}</span>}</div></div>}
-      {tool === 'compare' && <div className="tool-content"><p className="tool-intro">A blank comparison keeps the decision grounded in the facts you add.</p><div className="comparison-wrap"><table className="comparison-table"><thead><tr><th>Criteria</th>{compare.options.map((option, column) => <th key={column}><input value={option} onChange={(event) => setCompare((current) => ({ ...current, options: current.options.map((item, index) => index === column ? event.target.value : item) }))} placeholder={`Option ${column + 1}`} /></th>)}</tr></thead><tbody>{compare.criteria.map((criterion, row) => <tr key={row}><th><input value={criterion} onChange={(event) => setCompare((current) => ({ ...current, criteria: current.criteria.map((item, index) => index === row ? event.target.value : item) }))} placeholder={`Criterion ${row + 1}`} /></th>{compare.options.map((_, column) => <td key={column}><input value={compare.cells[row]?.[column] || ''} onChange={(event) => setCompare((current) => ({ ...current, cells: current.cells.map((cells, rowIndex) => rowIndex === row ? cells.map((cell, columnIndex) => columnIndex === column ? event.target.value : cell) : cells) }))} placeholder="Add fact" /></td>)}</tr>)}</tbody></table></div><div className="tool-actions split-actions"><div><button className="button quiet" onClick={() => setCompare((current) => ({ ...current, criteria: [...current.criteria, ''], cells: [...current.cells, current.options.map(() => '')] }))}><Plus size={16} /> Add criterion</button><button className="button quiet" onClick={() => setCompare((current) => ({ ...current, options: [...current.options, ''], cells: current.cells.map((cells) => [...cells, '']) }))}><Plus size={16} /> Add option</button></div><button className="button secondary" onClick={() => noteCopy(comparisonText)}><Copy size={16} /> {copy.copied ? 'Copied' : 'Copy table'}</button></div></div>}
-      {tool === 'draft_message' && <div className="tool-content"><p className="tool-intro">Draft locally and copy when it sounds right. Sending stays in your hands.</p><Field label="Recipient" value={message.recipient} onChange={(recipient) => setMessage((current) => ({ ...current, recipient }))} placeholder="Name or address" /><Field label="Subject" value={message.subject} onChange={(subject) => setMessage((current) => ({ ...current, subject }))} placeholder="What is this about?" /><Field label="Body" value={message.body} onChange={(body) => setMessage((current) => ({ ...current, body }))} placeholder="Write your message" multiline /><div className="tool-actions"><button className="button secondary" disabled={!message.body.trim()} onClick={() => noteCopy(`To: ${message.recipient}\nSubject: ${message.subject}\n\n${message.body}`)}><Copy size={16} /> {copy.copied ? 'Copied' : 'Copy draft'}</button>{copyNote && <span className="action-note">{copyNote}</span>}</div></div>}
-    </section>
-  );
+  return <section className="tool-panel" aria-label={`${meta.label} tool`}>
+    <div className="tool-heading"><div className="tool-title-wrap"><span className="tool-icon"><Icon size={18} strokeWidth={1.8} /></span><div><h2>{meta.label}</h2></div></div><button type="button" className="icon-button" onClick={onClose} aria-label={`Close ${meta.label} tool`}><X size={18} /></button></div>
+    {source && <p className="source-draft"><span>From your draft</span>{source}</p>}
+    {tool === 'calendar' && <div className="tool-content"><p className="tool-intro">Edit the file here. Nothing is added to a calendar automatically.</p><div className="field-grid two-up"><Field label="Title" value={calendar.title} onChange={(title) => setCalendar((current) => ({ ...current, title }))} placeholder="Team offsite" /><Field label="Date" value={calendar.date} onChange={(date) => setCalendar((current) => ({ ...current, date }))} placeholder="YYYY-MM-DD" type="date" /><Field label="Starts" value={calendar.startTime} onChange={(startTime) => setCalendar((current) => ({ ...current, startTime }))} placeholder="09:00" type="time" /><Field label="Ends" value={calendar.endTime} onChange={(endTime) => setCalendar((current) => ({ ...current, endTime }))} placeholder="10:00" type="time" /></div><Field label="Location (optional)" value={calendar.location} onChange={(location) => setCalendar((current) => ({ ...current, location }))} placeholder="Add a place or link" /><Field label="Notes (optional)" value={calendar.description} onChange={(description) => setCalendar((current) => ({ ...current, description }))} placeholder="Add context for the event" multiline /><p className="action-note" role="status">{validateCalendar(calendar)}</p><div className="tool-actions"><button type="button" className="button primary" disabled={Boolean(validateCalendar(calendar))} onClick={handleCalendarDownload}><Download size={16} /> Download .ics</button>{calendarNote && <span className={cn('action-note', calendarNote.startsWith('Download') ? 'action-success' : 'action-error')} role="status">{calendarNote}</span>}</div></div>}
+    {tool === 'checklist' && <div className="tool-content"><p className="tool-intro">Edit the list, then copy it into another app.</p><div className="task-list">{checklist.map((task, index) => <div className={cn('task-row', task.done && 'is-done')} key={task.id}><button type="button" className="check-button" onClick={() => setChecklist((current) => current.map((item) => item.id === task.id ? { ...item, done: !item.done } : item))} aria-label={task.done ? `Mark task ${index + 1} open` : `Mark task ${index + 1} complete`}><Check size={15} /></button><input aria-label={`Task ${index + 1}`} value={task.text} onChange={(event) => setChecklist((current) => current.map((item) => item.id === task.id ? { ...item, text: event.target.value } : item))} placeholder="Add a task" /><button type="button" className="icon-button subtle" onClick={() => setChecklist((current) => current.filter((item) => item.id !== task.id))} aria-label={`Remove task ${index + 1}`}><Minus size={16} /></button></div>)}</div><button type="button" className="button quiet" onClick={() => setChecklist((current) => [...current, { id: Math.max(0, ...current.map((item) => item.id)) + 1, text: '', done: false }])}><Plus size={16} /> Add task</button><div className="tool-actions"><button type="button" className="button secondary" disabled={!checklist.some((task) => task.text.trim())} onClick={() => { void noteCopy(checklistText); }}><Copy size={16} /> {copy.copied ? 'Copied' : 'Copy checklist'}</button>{copyNote && <span className={cn('action-note', copy.copyError && 'action-error')} role="status">{copyNote}</span>}</div></div>}
+    {tool === 'compare' && <div className="tool-content"><p className="tool-intro">Add the facts you want to compare. The table stays in this browser.</p><div className="comparison-wrap"><table className="comparison-table"><thead><tr><th scope="col">Criteria</th>{compare.options.map((option, column) => <th scope="col" key={column}><input aria-label={`Option ${column + 1}`} value={option} onChange={(event) => setCompare((current) => ({ ...current, options: current.options.map((item, index) => index === column ? event.target.value : item) }))} placeholder={`Option ${column + 1}`} /></th>)}</tr></thead><tbody>{compare.criteria.map((criterion, row) => <tr key={row}><th scope="row"><input aria-label={`Criterion ${row + 1}`} value={criterion} onChange={(event) => setCompare((current) => ({ ...current, criteria: current.criteria.map((item, index) => index === row ? event.target.value : item) }))} placeholder={`Criterion ${row + 1}`} /></th>{compare.options.map((_, column) => <td key={column}><input aria-label={`${criterion || `Criterion ${row + 1}`} for ${compare.options[column] || `Option ${column + 1}`}`} value={compare.cells[row]?.[column] || ''} onChange={(event) => setCompare((current) => ({ ...current, cells: current.cells.map((cells, rowIndex) => rowIndex === row ? cells.map((cell, columnIndex) => columnIndex === column ? event.target.value : cell) : cells) }))} placeholder="Add fact" /></td>)}</tr>)}</tbody></table></div><div className="tool-actions split-actions"><div><button type="button" className="button quiet" onClick={() => setCompare((current) => ({ ...current, criteria: [...current.criteria, ''], cells: [...current.cells, current.options.map(() => '')] }))}><Plus size={16} /> Add criterion</button><button type="button" className="button quiet" onClick={() => setCompare((current) => ({ ...current, options: [...current.options, ''], cells: current.cells.map((cells) => [...cells, '']) }))}><Plus size={16} /> Add option</button></div><button type="button" className="button secondary" onClick={() => { void noteCopy(comparisonText); }}><Copy size={16} /> {copy.copied ? 'Copied' : 'Copy table'}</button></div>{copyNote && <p className={cn('action-note', 'copy-note', copy.copyError && 'action-error')} role="status">{copyNote}</p>}</div>}
+    {tool === 'draft_message' && <div className="tool-content"><p className="tool-intro">Draft locally and copy when it sounds right. Sending stays in your hands.</p><Field label="Recipient" value={message.recipient} onChange={(recipient) => setMessage((current) => ({ ...current, recipient }))} placeholder="Name or address" /><Field label="Subject" value={message.subject} onChange={(subject) => setMessage((current) => ({ ...current, subject }))} placeholder="What is this about?" /><Field label="Body" value={message.body} onChange={(body) => setMessage((current) => ({ ...current, body }))} placeholder="Write your message" multiline /><div className="tool-actions"><button type="button" className="button secondary" disabled={!message.body.trim()} onClick={() => { void noteCopy(`To: ${message.recipient}\nSubject: ${message.subject}\n\n${message.body}`); }}><Copy size={16} /> {copy.copied ? 'Copied' : 'Copy draft'}</button>{copyNote && <span className={cn('action-note', copy.copyError && 'action-error')} role="status">{copyNote}</span>}</div></div>}
+  </section>;
+}
+
+function ToolPicker({ onSelect }: { onSelect: (tool: ToolKind) => void }) {
+  return <div className="tool-picker" id="local-tools" aria-label="Choose a local tool"><div className="tool-picker-heading"><span>Local tools</span><small>Choose one if the suggestion is not what you need.</small></div><div className="tool-picker-grid">{scoreKeys.map((tool) => { const Icon = toolMeta[tool].icon; return <button type="button" className="tool-choice" key={tool} onClick={() => onSelect(tool)}><span className="tool-choice-icon"><Icon size={16} /></span><span><strong>{toolMeta[tool].label}</strong><small>{toolMeta[tool].description}</small></span><ArrowUpRight size={14} /></button>; })}</div></div>;
 }
 
 export default function Home() {
@@ -215,13 +193,17 @@ export default function Home() {
   const [decisionError, setDecisionError] = useState('');
   const [predictionEnabled, setPredictionEnabled] = useState(true);
   const [activeTool, setActiveTool] = useState<ToolKind | null>(null);
+  const [toolsOpen, setToolsOpen] = useState(false);
   const [toolSources, setToolSources] = useState<Partial<Record<ToolKind, string>>>({});
   const [dismissedSuggestion, setDismissedSuggestion] = useState('');
   const [roundtripMs, setRoundtripMs] = useState<number | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<StoredMessage[]>([{ id: 'welcome', role: 'assistant', content: 'What would you like to work on?' }]);
   const [chatBusy, setChatBusy] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState('');
+  const [statusRetry, setStatusRetry] = useState(0);
   const [chatError, setChatError] = useState('');
+  const [chatStatus, setChatStatus] = useState<ChatStatus | null>(null);
+  const [chatStatusState, setChatStatusState] = useState<'loading' | 'ready' | 'error'>('loading');
   const [calendar, setCalendar] = useState<CalendarDraft>(() => emptyCalendar());
   const [checklist, setChecklist] = useState<ChecklistTask[]>([{ id: 1, text: '', done: false }]);
   const [compare, setCompare] = useState<CompareDraft>({ options: ['', ''], criteria: ['', ''], cells: [['', ''], ['', '']] });
@@ -231,10 +213,29 @@ export default function Home() {
   const composingRef = useRef(false);
   const [compositionTick, setCompositionTick] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const cancelDecision = useCallback(() => {
-    lifecycleRef.current?.invalidate();
-  }, []);
+  const cancelDecision = useCallback(() => lifecycleRef.current?.invalidate(), []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadChatStatus = async () => {
+      setChatStatusState('loading');
+      try {
+        const response = await fetch('/api/chat', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Chat status could not be checked.');
+        const data = await response.json() as Partial<ChatStatus>;
+        if (cancelled) return;
+        if (typeof data.available !== 'boolean' || typeof data.provider !== 'string' || typeof data.model !== 'string') throw new Error('Chat status response was incomplete.');
+        setChatStatus({ available: data.available, provider: data.provider, model: data.model });
+        setChatStatusState('ready');
+      } catch {
+        if (!cancelled) setChatStatusState('error');
+      }
+    };
+    void loadChatStatus();
+    return () => { cancelled = true; };
+  }, [statusRetry]);
 
   useEffect(() => {
     if (composingRef.current) return;
@@ -245,13 +246,11 @@ export default function Home() {
     const { requestId, controller } = request;
     setPrediction(null);
     if (!predictionEnabled) {
-      setPrediction(null);
       setDecisionState('disabled');
       setDecisionError('');
       return;
     }
     if (!text) {
-      setPrediction(null);
       setDecisionState('idle');
       setDecisionError('');
       setRoundtripMs(null);
@@ -265,11 +264,10 @@ export default function Home() {
       try {
         const response = await fetch('/api/decision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, request_id: requestId }), signal: controller.signal });
         if (response.status === 429 && attempt < 3) {
-          setDecisionState('loading');
           lifecycle.schedule(requestId, () => { void attemptDecision(attempt + 1); }, 1000 * (2 ** attempt));
           return;
         }
-        if (!response.ok) throw new Error(response.status === 429 ? 'Decision model is still warming or busy after retries. Try again shortly.' : `Decision service returned ${response.status}.`);
+        if (!response.ok) throw new Error(response.status === 429 ? 'Prediction is busy after retries. Try again shortly.' : `Prediction service returned ${response.status}.`);
         const data = parseDecision(await response.json(), requestId);
         if (!lifecycle.isCurrent(requestId)) return;
         setPrediction(data);
@@ -278,7 +276,7 @@ export default function Home() {
       } catch (error) {
         if (controller.signal.aborted || !lifecycle.isCurrent(requestId)) return;
         setDecisionState('error');
-        setDecisionError(error instanceof Error ? error.message : 'Decision service unavailable.');
+        setDecisionError(error instanceof Error ? error.message : 'Prediction service unavailable.');
         setPrediction(null);
         setRoundtripMs(null);
       }
@@ -287,9 +285,17 @@ export default function Home() {
     return () => lifecycle.invalidate();
   }, [draft, predictionEnabled, compositionTick]);
 
+  useEffect(() => {
+    const reducedMotion = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    messagesEndRef.current?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'end' });
+  }, [messages, chatBusy]);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
   const openTool = (tool: ToolKind, source = draft.trim()) => {
     cancelDecision();
     setActiveTool(tool);
+    setToolsOpen(true);
+    setDecisionState('idle');
     setToolSources((current) => current[tool] ? current : { ...current, [tool]: source });
     if (tool === 'calendar') setCalendar((current) => current.source ? current : emptyCalendar(source));
     if (tool === 'checklist' && checklist.every((task) => !task.text.trim())) {
@@ -313,58 +319,43 @@ export default function Home() {
     setDecisionState('idle');
   };
 
-  const sendToChat = async () => {
+  const sendToChat = async (event: React.FormEvent) => {
+    event.preventDefault();
     const text = draft.trim();
-    if (!text || chatBusy) return;
+    if (!text || chatBusy || !chatStatus?.available) return;
+    const nextMessages: StoredMessage[] = [...messages, { id: crypto.randomUUID(), role: 'user', content: text }];
     setChatBusy(true);
+    setPendingMessage(text);
     setChatError('');
-    setMessages((current) => [...current, { role: 'user', content: text }]);
+    cancelDecision();
+    setPrediction(null);
+    setDecisionState('idle');
     try {
-      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [...messages, { role: 'user', content: text }] }) });
-      if (!response.ok) throw new Error(`Chat service returned ${response.status}.`);
-      const data = await response.json() as { message?: string; response?: string; content?: string };
-      const reply = data.message || data.response || data.content;
-      if (!reply) throw new Error('Chat service returned no reply.');
-      setMessages((current) => [...current, { role: 'assistant', content: reply }]);
+      const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: nextMessages.map(({ role, content }) => ({ role, content })) }), signal: AbortSignal.timeout(30000) });
+      const data = await response.json() as { message?: string; error?: string };
+      if (!response.ok || typeof data.message !== 'string' || !data.message.trim()) throw new Error(data.error || `Chat service returned ${response.status}.`);
+      setMessages([...nextMessages, { id: crypto.randomUUID(), role: 'assistant', content: data.message }]);
+      setDraft((current) => current.trim() === text ? '' : current);
     } catch (error) {
-      setChatError(error instanceof Error ? error.message : 'Chat service unavailable.');
+      setChatError(error instanceof Error ? error.message : 'Chat is unavailable. Your draft is still here.');
     } finally {
       setChatBusy(false);
+      setPendingMessage('');
     }
-  };
-
-  const continueDraft = () => {
-    if (prediction && topIntent && !prediction.abstained) {
-      openTool(topIntent);
-      return;
-    }
-    document.querySelector<HTMLButtonElement>('.manual-tool')?.focus();
   };
 
   const suggestionVisible = Boolean(prediction && prediction.intent !== 'none' && !prediction.abstained && `${prediction.request_id}:${prediction.intent}` !== dismissedSuggestion);
   const topIntent = prediction && prediction.intent !== 'none' ? prediction.intent : null;
+  const statusLabel = chatStatusState === 'loading' ? 'Checking assistant' : chatStatus?.available ? `${chatStatus.provider} ready` : chatStatusState === 'error' ? 'Assistant status unavailable' : 'Assistant not configured';
 
-  return (
-    <main className="workspace-shell">
-      <div className="workspace-frame">
-        <header className="site-header"><Link href="/" className="wordmark" aria-label="Predictive workspace home"><span className="wordmark-mark"><Sparkles size={16} /></span><span>Predictive workspace</span></Link><div className="header-status"><span className={cn('status-dot', predictionEnabled && 'is-on')} /> {predictionEnabled ? 'Prediction on' : 'Prediction paused'} <button className="text-button" onClick={() => { const next = !predictionEnabled; setPredictionEnabled(next); if (!next) cancelDecision(); }}>Change</button></div></header>
-        <div className="workspace-grid">
-          <section className="composer-column">
-            <div className="intro-block"><p className="eyebrow">A quieter way to start</p><h1>Put the thought down.<br /><em>Pick up the right tool.</em></h1><p className="intro-copy">Write what is on your mind. Predictive workspace suggests a useful starting point before you send anything.</p></div>
-            <div className="composer-card"><div className="composer-label"><span>What are you working on?</span><span className="character-hint">{draft.length > 0 ? `${draft.length}/600 characters` : 'Your draft stays here'}</span></div><textarea maxLength={600} ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onCompositionStart={() => { composingRef.current = true; }} onCompositionEnd={() => { composingRef.current = false; setCompositionTick((tick) => tick + 1); }} placeholder="Try: remind me to compare the two offers…" rows={6} aria-label="Describe what you want to work on" /><div className="composer-footer"><span className="privacy-note"><span className="lock-mark">◎</span> Local prediction receives this draft while you type</span><div className="composer-actions">{draft && <button className="clear-button" onClick={() => { setDraft(''); inputRef.current?.focus(); }}>Clear</button>}<button className="button primary send-button" onClick={continueDraft} disabled={!draft.trim() || chatBusy}>{chatBusy ? <LoaderCircle className="spin" size={16} /> : <ArrowUpRight size={15} />}{prediction && topIntent && !prediction.abstained ? 'Open suggestion' : 'Choose a tool'}</button></div></div></div>
-            <div className="examples"><span className="examples-label">Start with an example</span><div className="example-row"><button onClick={() => setDraft('Plan a team offsite next Thursday from 10am to 4pm')}>Plan a team offsite</button><button onClick={() => setDraft('Compare these two job offers on pay, growth, and location')}>Compare two offers</button><button onClick={() => setDraft('Write a note to Sam asking to move our catch-up')}>Draft a note</button></div></div>
-            <div className="optional-chat"><button className="optional-chat-toggle" onClick={() => setChatOpen((open) => !open)}>{chatOpen ? 'Hide optional assistant chat' : 'Optional: ask the assistant'}</button>{chatOpen && <div className="optional-chat-panel"><p>This separate chat route may require its own provider. It does not run the local tools.</p><button className="button secondary" onClick={sendToChat} disabled={!draft.trim() || chatBusy}>{chatBusy ? <LoaderCircle className="spin" size={15} /> : <Send size={15} />} Send this draft</button></div>}</div>
-            {chatError && <p className="inline-error" role="alert">The assistant is unavailable right now. Your draft is still here. <span>{chatError}</span></p>}
-            {decisionState === 'error' && <p className="inline-error" role="status">Prediction is unavailable. You can still choose a local tool manually. <span>{decisionError}</span></p>}
-            {messages.length > 0 && <div className="message-thread" aria-label="Chat messages">{messages.map((item, index) => <div className={cn('message-bubble', item.role)} key={`${item.role}-${index}`}><span>{item.role === 'user' ? 'You' : 'Assistant'}</span><p>{item.content}</p></div>)}</div>}
-            <footer className="quiet-footer"><span>Local tools · Your edits stay in your browser</span><a href="#details">How decisions are made <ArrowUpRight size={13} /></a></footer>
-          </section>
-          <aside className="tools-column"><div className="tools-head"><div><p className="eyebrow">Workspace</p><h2>{activeTool ? toolMeta[activeTool].label : 'Choose a starting point'}</h2></div>{decisionState === 'loading' && <LoaderCircle className="spin muted-icon" size={18} aria-label="Predicting" />}</div>
-            {activeTool ? <ToolPanel tool={activeTool} source={toolSources[activeTool] || ''} calendar={calendar} setCalendar={setCalendar} checklist={checklist} setChecklist={setChecklist} compare={compare} setCompare={setCompare} message={message} setMessage={setMessage} onClose={() => setActiveTool(null)} /> : <><>{suggestionVisible && prediction && topIntent ? <div className="suggestion-card"><div className="suggestion-top"><span className="suggestion-kicker"><Sparkles size={14} /> Suggested tool</span><button className="icon-button subtle" onClick={dismissSuggestion} aria-label="Dismiss suggestion"><X size={16} /></button></div><h3>{intentLabels[topIntent]}</h3><p>{toolMeta[topIntent].description}</p><button className="suggestion-open" onClick={() => openTool(topIntent)}><span>Open {toolMeta[topIntent].label}</span><ArrowUpRight size={16} /></button></div> : <div className="empty-tools"><div className="empty-icon"><CheckSquare2 size={20} /></div><h3>{decisionState === 'error' ? 'Tools are still available' : 'Your tools will appear here'}</h3><p>{decisionState === 'error' ? 'Prediction is unavailable. Choose a tool manually and keep going.' : 'Start typing and we will offer one when the intent is clear.'}</p></div>}</><div className="manual-tools"><div className="manual-heading"><span>Or choose manually</span><span className="manual-rule" /></div>{scoreKeys.map((tool) => { const Icon = toolMeta[tool].icon; return <button className="manual-tool" key={tool} onClick={() => openTool(tool)}><span className="manual-tool-icon"><Icon size={17} /></span><span><strong>{toolMeta[tool].label}</strong><small>{toolMeta[tool].description}</small></span><ArrowUpRight size={15} /></button>; })}</div>{prediction && (prediction.intent === 'none' || prediction.abstained) && <p className="abstain-note">{prediction.abstained ? 'The decision model abstained for this draft. You can choose a tool manually.' : 'No clear tool suggestion for this draft. You can still choose one above.'}</p>}</>}
-            <div className="decision-details" id="details"><details><summary>Decision details</summary>{prediction ? <div className="detail-grid"><span>Provider</span><strong>{prediction.provider}</strong><span>Model</span><strong>{prediction.model}</strong><span>Model time</span><strong>{prediction.decision_ms.toFixed(0)} ms</strong><span>Roundtrip</span><strong>{roundtripMs === null ? '—' : `${roundtripMs} ms`}</strong><span>Result</span><strong>{prediction.abstained ? 'Abstained' : intentLabels[prediction.intent]}</strong></div> : <p>{decisionState === 'disabled' ? 'Prediction is paused.' : 'Details appear after a prediction returns.'}</p>}</details></div>
-          </aside>
-        </div>
-      </div>
-    </main>
-  );
+  return <main className="app-shell"><section className="chat-shell" aria-label="Vibes Chat">
+    <header className="chat-header"><div className="brand"><span className="brand-mark"><Sparkles size={16} /></span><div><strong>Vibes Chat</strong><span>Local tools, one conversation</span></div></div><div className="header-actions"><span className={cn('service-status', chatStatus?.available && 'is-ready')}><span className="status-dot" />{statusLabel}</span><button type="button" className="header-button" onClick={() => { const next = !predictionEnabled; setPredictionEnabled(next); if (!next) cancelDecision(); }} aria-pressed={predictionEnabled}>{predictionEnabled ? 'Prediction on' : 'Prediction off'}</button></div></header>
+    <div className="conversation" role="log" aria-live="polite" aria-label="Conversation"><div className="conversation-intro"><p>Start with a message. A local suggestion may appear while you write.</p></div><div className="message-list">{messages.map((item) => <article className={cn('message', item.role)} key={item.id}><span className="message-role">{item.role === 'user' ? 'You' : 'Assistant'}</span><p>{item.content}</p></article>)}{pendingMessage && <article className="message user"><span className="message-role">You</span><p>{pendingMessage}</p></article>}{chatBusy && <article className="message assistant pending" aria-label="Assistant is responding"><span className="message-role">Assistant</span><span className="typing-indicator"><i /><i /><i /></span></article>}{chatError && <div className="chat-error" role="alert"><span>{chatError}</span><button type="button" className="retry-button" onClick={() => inputRef.current?.focus()}><RefreshCw size={13} /> Keep draft</button></div>}<div ref={messagesEndRef} /></div></div>
+    <div className="composer-zone">{activeTool && <div className="drawer-wrap"><ToolPanel tool={activeTool} source={toolSources[activeTool] || ''} calendar={calendar} setCalendar={setCalendar} checklist={checklist} setChecklist={setChecklist} compare={compare} setCompare={setCompare} message={message} setMessage={setMessage} onClose={() => setActiveTool(null)} /></div>}{toolsOpen && !activeTool && <ToolPicker onSelect={(tool) => openTool(tool)} />}
+      <div className="suggestion-line" aria-live="polite">{suggestionVisible && prediction && topIntent ? <div className="suggestion"><span className="suggestion-icon"><Sparkles size={15} /></span><div className="suggestion-copy"><strong>{intentLabels[topIntent]} suggested</strong><span>{toolMeta[topIntent].description}</span></div><button type="button" className="suggestion-action" onClick={() => openTool(topIntent)}>Open <ArrowUpRight size={14} /></button><button type="button" className="suggestion-dismiss" onClick={dismissSuggestion} aria-label="Dismiss tool suggestion"><X size={15} /></button></div> : decisionState === 'loading' && draft.trim() ? <div className="prediction-note"><LoaderCircle size={13} className="spin" /> Finding a useful local tool…</div> : decisionState === 'error' && draft.trim() ? <div className="prediction-note error" role="status"><span>Local suggestion unavailable. {decisionError || 'You can still use Tools.'}</span><button type="button" onClick={() => setToolsOpen(true)}>Open tools</button></div> : prediction && (prediction.intent === 'none' || prediction.abstained) ? <div className="prediction-note"><span>{prediction.abstained ? 'No clear local tool for this draft.' : 'No local tool suggested.'}</span><button type="button" onClick={() => setToolsOpen(true)}>Browse tools</button></div> : null}</div>
+      <form className="composer" onSubmit={sendToChat}><div className="composer-topline"><label htmlFor="message-draft">Message</label><span>{draft.length ? `${draft.length}/600` : 'Shift + Enter for a new line'}</span></div><textarea id="message-draft" ref={inputRef} value={draft} maxLength={600} onChange={(event) => setDraft(event.target.value)} onCompositionStart={() => { composingRef.current = true; }} onCompositionEnd={() => { composingRef.current = false; setCompositionTick((tick) => tick + 1); }} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && !composingRef.current) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Type a message…" rows={1} aria-describedby="composer-help" /><div className="composer-bottom"><span id="composer-help" className="composer-help">Prediction stays local. Sending shares this conversation with {chatStatus?.provider || 'the assistant provider'}.</span><div className="composer-controls"><button type="button" className="tools-button" onClick={() => { setToolsOpen((open) => !open); if (activeTool) setActiveTool(null); }} aria-expanded={toolsOpen} aria-controls="local-tools">{toolsOpen ? 'Hide tools' : 'Tools'}<span className="tool-count">4</span></button><button type="submit" className="send-button" disabled={!draft.trim() || chatBusy || chatStatusState !== 'ready' || !chatStatus?.available}>{chatBusy ? <LoaderCircle size={16} className="spin" /> : <Send size={16} />}<span>{chatBusy ? 'Sending…' : 'Send'}</span></button></div></div></form>
+      {chatStatusState === 'ready' && !chatStatus?.available && <p className="configuration-note" role="status">Assistant is not configured. Set <code>OPENAI_API_KEY</code> on the server and restart. Local tools remain available.</p>}{chatStatusState === 'error' && <p className="configuration-note" role="status">Assistant status could not be checked. <button type="button" onClick={() => setStatusRetry((current) => current + 1)}>Try again</button></p>}
+      <footer className="chat-footer"><span>Local tools stay in this browser</span>{prediction && <details><summary>Prediction details</summary><span>{prediction.provider} · {prediction.model} · {roundtripMs === null ? '—' : `${roundtripMs} ms`}</span></details>}</footer>
+    </div>
+  </section></main>;
 }

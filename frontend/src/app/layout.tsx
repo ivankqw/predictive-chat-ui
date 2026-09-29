@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Predictive workspace",
+  title: "Vibes Chat",
   description: "A local-first workspace that suggests the right tool for a draft.",
 };
 
