@@ -17,7 +17,9 @@ python3.12 -m venv .venv-decision
 .venv-decision/bin/python decision_app.py
 ```
 
-In another terminal, start the frontend:
+In another terminal, set `OPENAI_API_KEY` in your shell or an untracked `frontend/.env.local` file. Chat uses `gpt-4.1-mini` by default; set `CHAT_MODEL` to change it. The key stays on the server.
+
+Start the frontend:
 
 ```bash
 cd frontend
@@ -33,7 +35,7 @@ The first prediction downloads and loads the pinned model. Later predictions reu
 
 Laya chooses one label: `calendar`, `checklist`, `compare`, `draft_message`, or `none`. The server applies a declared score and margin threshold before offering a suggestion. These scores have not been calibrated on this task.
 
-A suggestion does not execute an action. Open or dismiss it, or choose a tool yourself. Tools keep your edits independently of new predictions. Event files and copied text require explicit clicks. The app does not send messages, write to a calendar account, or invent comparison facts.
+A suggestion does not execute an action. Open or dismiss it, or choose a tool yourself. Tools keep your edits independently of new predictions. Event files and copied text require explicit clicks. The local tools do not send messages or write to a calendar account. The separate Send action sends the conversation to OpenAI for a chat reply.
 
 The model does not generate the form, populate missing event details, or write message prose. Manual controls remain available if inference fails.
 
@@ -45,6 +47,12 @@ Development probes found unwanted suggestions for explicit negations. A high sco
 
 See [the decision service documentation](server/README.md) for the pinned checkpoint, API, tests, and limitations. Evaluation evidence is recorded under `docs/experiment/`.
 
-## Original chat backend
+## Chat and tool suggestions
 
-`server/main.py` and the older frontend chat route remain for reference and optional Groq-backed chat. They are separate from the local decision service. Their historical model configuration has not been verified against the current Groq API. The predictive workspace does not need that service.
+The interface continues the original chat thread and bottom composer. Laya selects a suggested tool while you type. Opening a suggestion leaves your conversation and draft in place. Manual tools remain available.
+
+Send uses the server-side OpenAI chat route. It does not invoke Laya or execute a tool. Without `OPENAI_API_KEY`, the interface explains how to enable chat; local tools still work. Failed requests keep the draft for retry. Conversations and tool edits are held in memory and reset on page reload.
+
+The historical `server/main.py` Groq backend remains for reference. Its old model configuration is not used by this interface.
+
+Run `npm run test:frontend`, `npm run test:chat`, and `npm run build` from `frontend` to check the current application.
