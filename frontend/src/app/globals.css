@@ -91,6 +91,11 @@ button:disabled { cursor: not-allowed; }
 .example-row { display: flex; flex-wrap: wrap; gap: 7px; }
 .example-row button { border: 1px solid var(--line); border-radius: 999px; padding: 8px 11px; background: transparent; color: var(--muted); font-size: 11px; transition: border-color .18s ease, color .18s ease, background .18s ease; }
 .example-row button:hover { border-color: var(--teal); background: rgba(219, 236, 230, .5); color: var(--teal-dark); }
+.optional-chat { margin-top: 19px; }
+.optional-chat-toggle { border: 0; padding: 0; background: transparent; color: var(--muted); font-size: 11px; text-decoration: underline; text-decoration-color: #c1c6bd; text-underline-offset: 3px; }
+.optional-chat-toggle:hover { color: var(--teal-dark); text-decoration-color: var(--teal); }
+.optional-chat-panel { max-width: 420px; margin-top: 10px; padding: 13px; border: 1px solid var(--line); border-radius: 9px; background: rgba(255, 253, 248, .6); }
+.optional-chat-panel p { margin: 0 0 10px; color: var(--muted); font-size: 11px; line-height: 1.45; }
 
 .tools-column { min-width: 0; align-self: start; }
 .tools-head { display: flex; align-items: flex-start; justify-content: space-between; min-height: 61px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }

@@ -20,6 +20,8 @@ import {
   X,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { formatIcsDate } from '@/lib/ics';
+import { createDecisionLifecycle, type DecisionLifecycle } from '@/lib/decisionLifecycle';
 
 export interface Message {
   role: 'user' | 'assistant';
@@ -124,12 +126,6 @@ function parseDecision(value: unknown, requestId: number): DecisionResponse {
   return { request_id: requestId, intent: candidate.intent, scores, provider: candidate.provider, model: candidate.model, decision_ms: candidate.decision_ms, abstained: candidate.abstained };
 }
 
-function formatIcsDate(date: string, time: string) {
-  const cleanDate = date.replaceAll('-', '').replaceAll('/', '');
-  const cleanTime = time.replace(':', '');
-  return `${cleanDate}T${cleanTime.length === 4 ? `${cleanTime}00` : cleanTime}00`;
-}
-
 function downloadCalendar(draft: CalendarDraft) {
   const now = new Date();
   const lines = [
@@ -224,34 +220,29 @@ export default function Home() {
   const [roundtripMs, setRoundtripMs] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatBusy, setChatBusy] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [chatError, setChatError] = useState('');
   const [calendar, setCalendar] = useState<CalendarDraft>(() => emptyCalendar());
   const [checklist, setChecklist] = useState<ChecklistTask[]>([{ id: 1, text: '', done: false }]);
   const [compare, setCompare] = useState<CompareDraft>({ options: ['', ''], criteria: ['', ''], cells: [['', ''], ['', '']] });
   const [message, setMessage] = useState<MessageDraft>(() => emptyMessage());
-  const sequenceRef = useRef(0);
-  const abortRef = useRef<AbortController | null>(null);
-  const debounceRef = useRef<number | null>(null);
+  const lifecycleRef = useRef<DecisionLifecycle | null>(null);
+  if (!lifecycleRef.current) lifecycleRef.current = createDecisionLifecycle();
   const composingRef = useRef(false);
   const [compositionTick, setCompositionTick] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const cancelDecision = useCallback(() => {
-    sequenceRef.current += 1;
-    abortRef.current?.abort();
-    abortRef.current = null;
-    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
-    debounceRef.current = null;
+    lifecycleRef.current?.invalidate();
   }, []);
 
   useEffect(() => {
     if (composingRef.current) return;
     const text = draft.trim();
-    const requestId = ++sequenceRef.current;
-    abortRef.current?.abort();
-    abortRef.current = null;
-    if (debounceRef.current !== null) window.clearTimeout(debounceRef.current);
-    debounceRef.current = null;
+    const lifecycle = lifecycleRef.current;
+    if (!lifecycle) return;
+    const request = lifecycle.begin();
+    const { requestId, controller } = request;
     setPrediction(null);
     if (!predictionEnabled) {
       setPrediction(null);
@@ -268,33 +259,26 @@ export default function Home() {
     }
     setDecisionState('loading');
     setDecisionError('');
-    const timer = window.setTimeout(async () => {
-      debounceRef.current = null;
-      if (requestId !== sequenceRef.current || !predictionEnabled) return;
-      const controller = new AbortController();
-      abortRef.current = controller;
+    lifecycle.schedule(requestId, async () => {
+      if (!lifecycle.isCurrent(requestId) || !predictionEnabled) return;
       const startedAt = performance.now();
       try {
         const response = await fetch('/api/decision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text, request_id: requestId }), signal: controller.signal });
         if (!response.ok) throw new Error(response.status === 429 ? 'Decision model is warming or busy. Try again shortly.' : `Decision service returned ${response.status}.`);
         const data = parseDecision(await response.json(), requestId);
-        if (requestId !== sequenceRef.current) return;
+        if (!lifecycle.isCurrent(requestId)) return;
         setPrediction(data);
         setRoundtripMs(Math.round(performance.now() - startedAt));
         setDecisionState('ready');
       } catch (error) {
-        if (controller.signal.aborted || requestId !== sequenceRef.current) return;
+        if (controller.signal.aborted || !lifecycle.isCurrent(requestId)) return;
         setDecisionState('error');
         setDecisionError(error instanceof Error ? error.message : 'Decision service unavailable.');
         setPrediction(null);
         setRoundtripMs(null);
       }
     }, 250);
-    debounceRef.current = timer;
-    return () => {
-      window.clearTimeout(timer);
-      if (debounceRef.current === timer) debounceRef.current = null;
-    };
+    return () => lifecycle.invalidate();
   }, [draft, predictionEnabled, compositionTick]);
 
   const openTool = (tool: ToolKind, source = draft.trim()) => {
@@ -329,7 +313,6 @@ export default function Home() {
     setChatBusy(true);
     setChatError('');
     setMessages((current) => [...current, { role: 'user', content: text }]);
-    setDraft('');
     try {
       const response = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [...messages, { role: 'user', content: text }] }) });
       if (!response.ok) throw new Error(`Chat service returned ${response.status}.`);
@@ -344,6 +327,14 @@ export default function Home() {
     }
   };
 
+  const continueDraft = () => {
+    if (prediction && topIntent && !prediction.abstained) {
+      openTool(topIntent);
+      return;
+    }
+    document.querySelector<HTMLButtonElement>('.manual-tool')?.focus();
+  };
+
   const suggestionVisible = Boolean(prediction && prediction.intent !== 'none' && !prediction.abstained && `${prediction.request_id}:${prediction.intent}` !== dismissedSuggestion);
   const topIntent = prediction && prediction.intent !== 'none' ? prediction.intent : null;
 
@@ -354,8 +345,9 @@ export default function Home() {
         <div className="workspace-grid">
           <section className="composer-column">
             <div className="intro-block"><p className="eyebrow">A quieter way to start</p><h1>Put the thought down.<br /><em>Pick up the right tool.</em></h1><p className="intro-copy">Write what is on your mind. Predictive workspace suggests a useful starting point before you send anything.</p></div>
-            <div className="composer-card"><div className="composer-label"><span>What are you working on?</span><span className="character-hint">{draft.length > 0 ? `${draft.length}/600 characters` : 'Your draft stays here'}</span></div><textarea maxLength={600} ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onCompositionStart={() => { composingRef.current = true; }} onCompositionEnd={() => { composingRef.current = false; setCompositionTick((tick) => tick + 1); }} placeholder="Try: remind me to compare the two offers…" rows={6} aria-label="Describe what you want to work on" /><div className="composer-footer"><span className="privacy-note"><span className="lock-mark">◎</span> Nothing is sent until you choose</span><div className="composer-actions">{draft && <button className="clear-button" onClick={() => { setDraft(''); inputRef.current?.focus(); }}>Clear</button>}<button className="button primary send-button" onClick={sendToChat} disabled={!draft.trim() || chatBusy}>{chatBusy ? <LoaderCircle className="spin" size={16} /> : <Send size={15} />}{chatBusy ? 'Working…' : 'Continue'}</button></div></div></div>
+            <div className="composer-card"><div className="composer-label"><span>What are you working on?</span><span className="character-hint">{draft.length > 0 ? `${draft.length}/600 characters` : 'Your draft stays here'}</span></div><textarea maxLength={600} ref={inputRef} value={draft} onChange={(event) => setDraft(event.target.value)} onCompositionStart={() => { composingRef.current = true; }} onCompositionEnd={() => { composingRef.current = false; setCompositionTick((tick) => tick + 1); }} placeholder="Try: remind me to compare the two offers…" rows={6} aria-label="Describe what you want to work on" /><div className="composer-footer"><span className="privacy-note"><span className="lock-mark">◎</span> Nothing is sent until you choose</span><div className="composer-actions">{draft && <button className="clear-button" onClick={() => { setDraft(''); inputRef.current?.focus(); }}>Clear</button>}<button className="button primary send-button" onClick={continueDraft} disabled={!draft.trim() || chatBusy}>{chatBusy ? <LoaderCircle className="spin" size={16} /> : <ArrowUpRight size={15} />}{prediction && topIntent && !prediction.abstained ? 'Open suggestion' : 'Choose a tool'}</button></div></div></div>
             <div className="examples"><span className="examples-label">Start with an example</span><div className="example-row"><button onClick={() => setDraft('Plan a team offsite next Thursday from 10am to 4pm')}>Plan a team offsite</button><button onClick={() => setDraft('Compare these two job offers on pay, growth, and location')}>Compare two offers</button><button onClick={() => setDraft('Write a note to Sam asking to move our catch-up')}>Draft a note</button></div></div>
+            <div className="optional-chat"><button className="optional-chat-toggle" onClick={() => setChatOpen((open) => !open)}>{chatOpen ? 'Hide optional assistant chat' : 'Optional: ask the assistant'}</button>{chatOpen && <div className="optional-chat-panel"><p>This separate chat route may require its own provider. It does not run the local tools.</p><button className="button secondary" onClick={sendToChat} disabled={!draft.trim() || chatBusy}>{chatBusy ? <LoaderCircle className="spin" size={15} /> : <Send size={15} />} Send this draft</button></div>}</div>
             {chatError && <p className="inline-error" role="alert">The assistant is unavailable right now. Your draft is still here. <span>{chatError}</span></p>}
             {decisionState === 'error' && <p className="inline-error" role="status">Prediction is unavailable. You can still choose a local tool manually. <span>{decisionError}</span></p>}
             {messages.length > 0 && <div className="message-thread" aria-label="Chat messages">{messages.map((item, index) => <div className={cn('message-bubble', item.role)} key={`${item.role}-${index}`}><span>{item.role === 'user' ? 'You' : 'Assistant'}</span><p>{item.content}</p></div>)}</div>}

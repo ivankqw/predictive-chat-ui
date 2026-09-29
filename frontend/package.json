@@ -6,7 +6,8 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test:frontend": "node --experimental-strip-types scripts/test-frontend.ts"
   },
   "engines": {
     "node": ">=20.9.0"
