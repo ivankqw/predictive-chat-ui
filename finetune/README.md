@@ -51,6 +51,8 @@ Smoke uses a tiny random BERT encoder and a real Laya decision head. It performs
 
 ## Train on Colab or Kaggle
 
+The Colab notebook creates a separate Python 3.12.13 environment for model commands, including when Colab itself runs Python 3.13. Keep the default kernel; no runtime downgrade is needed. The kernel only orchestrates subprocesses and downloads artifacts.
+
 The notebook installs pinned direct dependencies, verifies the dataset and base weight hash, runs a one-step GPU memory probe, and leaves full training off until `RUN_TRAINING=True`. It does not mount Drive, collect credentials, or publish weights. Save the downloadable artifact zip before an ephemeral session ends.
 
 The same commands work in a checkout on a GPU machine (replace `python` with that environment's interpreter):
