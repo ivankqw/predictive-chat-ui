@@ -7,6 +7,7 @@ import pytest
 from finetune.data_tools import ROOT, grouped_split, read_rows, validate, verify_splits, write_splits
 from finetune.metrics import report, select_gate
 from finetune.policy import LABELS
+from finetune.compare import compare
 
 
 def test_frozen_manifest_and_group_isolation():
@@ -80,3 +81,20 @@ def test_invalid_predictions_fail():
     rows[0]["probabilities"]["calendar"] = 1.9
     with pytest.raises(ValueError, match="Invalid prediction"):
         report(rows, {"top": .45, "margin": .15})
+
+
+def test_comparison_refuses_changed_policy_or_hardware():
+    metadata = {"split": "test", "split_sha256": "test-hash", "policy_sha256": "policy-hash", "hardware": {"device": "cpu"}}
+    before = {"metadata": metadata, "metrics": report(predictions(), {"top": .45, "margin": .15})}
+    after = copy.deepcopy(before)
+    assert compare(before, after)["deltas"]["brier"] == 0
+    after["metadata"]["hardware"]["device"] = "cuda"
+    with pytest.raises(ValueError, match="hardware"):
+        compare(before, after)
+
+
+def test_test_gate_request_fails_before_loading_checkpoint(tmp_path):
+    from types import SimpleNamespace
+    from finetune.runtime import evaluate
+    with pytest.raises(ValueError, match="validation"):
+        evaluate(SimpleNamespace(select_gate=True, split="test", model=tmp_path / "missing"))

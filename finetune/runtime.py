@@ -275,6 +275,8 @@ def evaluate(args):
     import torch
     from laya import Agent
     from laya.common import encode_text
+    if args.select_gate and args.split != "validation":
+        raise ValueError("Gates may only be selected on validation")
     manifest = verify_splits(args.splits)
     output = new_output(args.output)
     cfg = json.loads((args.model / "rl_agent_config.json").read_text())

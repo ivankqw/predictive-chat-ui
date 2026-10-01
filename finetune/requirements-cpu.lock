@@ -3,6 +3,7 @@ annotated-types==0.8.0
 anyio==4.15.1
 certifi==2026.7.22
 charset-normalizer==3.5.2
+click==8.5.0
 fastapi==0.129.0
 filelock==3.32.3
 fsspec==2026.7.0
@@ -39,3 +40,4 @@ transformers==4.48.3
 typing-extensions==4.16.0
 typing-inspection==0.4.4
 urllib3==2.8.0
+uvicorn==0.41.0
