@@ -1,0 +1,8 @@
+# Install torch==2.6.0 separately from the CPU or CUDA 12.4 wheel index.
+# Runtime direct dependencies verified together on Python 3.12.13.
+laya==0.3.21
+transformers==4.48.3
+safetensors==0.5.3
+huggingface-hub==0.34.4
+numpy==2.2.6
+pytest==9.1.1
