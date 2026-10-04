@@ -96,12 +96,19 @@ def export_model(model, tokenizer, cfg, path):
                                        "config_sha256": digest(path / "rl_agent_config.json")})
 
 
-def rlcd_loss(logits, act, batch, sigma):
+def supervised_loss(logits, act, batch):
+    import torch
+    masked = logits.masked_fill(~batch["marker_mask"], -1e4)
+    ce = -(batch["target"] * torch.log_softmax(masked, -1)).sum(-1).mean()
+    return ce + 0.0 * act.sum()
+
+
+def rlcd_loss(logits, act, batch, sigma, generator=None):
     import torch
     from laya.common import proper_reward
     mask, target = batch["marker_mask"], batch["target"]
     k = mask.sum(-1, keepdim=True).float()
-    eps = torch.randn((4,) + logits.shape, device=logits.device) * sigma * mask
+    eps = torch.randn((4,) + logits.shape, device=logits.device, generator=generator) * sigma * mask
     eps = (eps - eps.sum(-1, keepdim=True) / k) * mask
     z = logits.detach().unsqueeze(0) + eps
     q = torch.softmax(z.masked_fill(~mask, -1e4), -1)
@@ -110,8 +117,7 @@ def rlcd_loss(logits, act, batch, sigma):
         advantage = reward - reward.mean(0, keepdim=True)
         advantage = advantage / (advantage.std() + 1e-6)
     logp = -(((z - logits.unsqueeze(0)) ** 2) * mask).sum(-1) / (2 * sigma ** 2)
-    ce = -(target * torch.log_softmax(logits.masked_fill(~mask, -1e4), -1)).sum(-1).mean()
-    return -(advantage * logp).mean() + ce + 0.0 * act.sum()
+    return -(advantage * logp).mean() + supervised_loss(logits, act, batch)
 
 
 def train(args):
@@ -119,6 +125,9 @@ def train(args):
     import torch.distributed as dist
     from torch.nn.parallel import DistributedDataParallel
     manifest = verify_splits(args.splits)
+    objective = getattr(args, "objective", "rlcd")
+    if objective not in ("supervised", "rlcd"):
+        raise ValueError("Unknown training objective")
     if args.epochs < 1 or args.batch_size < 1 or args.accumulation < 1 or args.max_steps < 0:
         raise ValueError("Training sizes must be positive")
     if not args.allow_fixture and digest(args.model / "model.safetensors") != BASE_SHA256:
@@ -133,6 +142,7 @@ def train(args):
         torch.cuda.set_device(device)
     else:
         device = torch.device(args.device)
+    noise_generator = torch.Generator(device=device).manual_seed(42 + rank)
     torch.manual_seed(42)
     random.seed(42)
     output = Path(args.output)
@@ -175,7 +185,10 @@ def train(args):
                 context = torch.autocast("cuda", dtype=torch.float16) if device.type == "cuda" else nullcontext()
                 with context:
                     logits, act = wrapped(**{k: v for k, v in batch.items() if k != "target"})
-                    loss = rlcd_loss(logits.float(), act, batch, sigma)
+                    if objective == "supervised":
+                        loss = supervised_loss(logits.float(), act, batch)
+                    else:
+                        loss = rlcd_loss(logits.float(), act, batch, sigma, generator=noise_generator)
                 if not torch.isfinite(loss):
                     raise ValueError("Non-finite training loss")
                 scaler.scale(loss / len(active)).backward()
@@ -195,10 +208,11 @@ def train(args):
             cfg.pop("temperature_by_options", None)
             cfg.pop("lang_temperatures", None)
             cfg["workspace_training"] = {"seed": 42, "steps": steps, "splits": manifest,
+                                         "objective": objective, "noise_rng": "separate-per-rank",
                                          "base_model_sha256": digest(Path(args.model) / "model.safetensors"),
                                          "calibrated": False}
             export_model(model, tok, cfg, output / "checkpoint_latest")
-            history.append({"epoch": epoch + 1, "steps": steps, "mean_loss": sum(losses) / len(losses),
+            history.append({"epoch": epoch + 1, "objective": objective, "steps": steps, "mean_loss": sum(losses) / len(losses),
                             "elapsed_seconds": time.perf_counter() - started,
                             "device": str(device),
                             "gpu": torch.cuda.get_device_name(device) if device.type == "cuda" else None,
@@ -221,7 +235,7 @@ def fit_temperature(logits, targets):
     # A deterministic grid is stable with this small pilot calibration set.
     temperatures = torch.logspace(torch.log10(torch.tensor(TEMP_MIN)), torch.log10(torch.tensor(TEMP_MAX)), 201)
     losses = torch.stack([-(targets * torch.log_softmax(logits / t, -1)).sum(-1).mean() for t in temperatures])
-    return float(temperatures[losses.argmin()])
+    return min(TEMP_MAX, max(TEMP_MIN, float(temperatures[losses.argmin()])))
 
 
 def calibrate(args):
@@ -362,6 +376,7 @@ def main():
         p.add_argument("--output", type=Path, required=True)
         p.add_argument("--device", choices=("cpu", "cuda"), default="cpu" if command != "train" else "cuda")
         if command == "train":
+            p.add_argument("--objective", choices=("supervised", "rlcd"), default="rlcd")
             p.add_argument("--epochs", type=int, default=4)
             p.add_argument("--batch-size", type=int, default=2)
             p.add_argument("--accumulation", type=int, default=4)

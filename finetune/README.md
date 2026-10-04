@@ -117,3 +117,9 @@ Production integration is a separate opt-in change: add a validated absolute `LA
 Prepared here: data/schema/leakage tests; real Laya APIs on the offline tiny fixture; export/reload; calibration persistence; validation gate and test metrics. Existing frontend lifecycle/ICS and chat route tests pass. Backend contract tests pass outside the restricted sandbox; its TestClient loop timed out inside it. No production code was changed.
 
 The real pinned checkpoint download returned a proxy `403` for `huggingface.co`. Real-model baselines, GPU memory probes, full training, DDP and an executed Colab session remain unrun. Colab does not depend on this cloud machine's network policy. The blog and existing draft PRs remain unpublished; do not insert fine-tune quality claims until actual reports exist.
+
+## Next experiment preparation
+
+See [ABLATION.md](ABLATION.md) for supervised-only versus RLCD training.
+See [the next dataset package](data/next/README.md) for agent-reviewed candidates and the draft policy.
+The next package is staging data. It does not replace the frozen pilot splits.

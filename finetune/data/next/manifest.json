@@ -1,0 +1,28 @@
+{
+  "counts": {
+    "labels": {
+      "calendar": 9,
+      "checklist": 16,
+      "compare": 6,
+      "draft_message": 16,
+      "none": 62
+    },
+    "leakage_groups": 20,
+    "review_status": {
+      "agent_reviewed": 109,
+      "excluded_pending_policy": 19
+    },
+    "total": 128
+  },
+  "files": {
+    "CLINC-LICENSE.txt": "e6bc9e9c474700b708f568bac9e5a8a9bcb2b1dad53442f5ba449fcb848b8e76",
+    "clinc-candidates.jsonl": "829adc0f9c7f8bb4ce934ee08864d84cb31c7222a98da9cfda261852b64e758a",
+    "contrastive.jsonl": "10135fe76a89093a825882ea9854f00307e009a53e908fec77de92275c1826fb",
+    "policy.json": "c7ffa0bf658e199f2c594a1c524162724b43287df5c60d34a7a5f24afce86357",
+    "reviewed-clinc.jsonl": "aaacb2a22069d14a5cfb1309e3a2e8bd4d1771ca80e86af3a3c9b8ffc972a330",
+    "source.json": "0f27efd37d852b5ead0d499b59df7eed8b4b0f0f59cb65d0f6480b3697ea0b26"
+  },
+  "frozen_pilot_manifest_sha256": "7770985495ac1e90c8f1ead927aaf8e03425bae59686436e1cf9be6512fa19ea",
+  "status": "agent-reviewed training candidates; human validation pending; no new evaluation split",
+  "training_allowed": false
+}
