@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Literal
 
 from fastapi import FastAPI, HTTPException
@@ -15,7 +16,7 @@ from decision_provider import INTENTS, InputTooLong, LayaDecisionProvider, Provi
 MAX_TEXT_CHARS = 600
 MAX_CONCURRENT_DECISIONS = 1
 logger = logging.getLogger("decision_app")
-provider = LayaDecisionProvider()
+provider = LayaDecisionProvider(checkpoint_path=os.environ.get("LOCAL_LAYA_CHECKPOINT"))
 decision_slots = asyncio.Semaphore(MAX_CONCURRENT_DECISIONS)
 
 app = FastAPI(title="Predictive workspace decision service")
@@ -37,6 +38,7 @@ class DecisionResponse(BaseModel):
     model: str
     decision_ms: float
     abstained: bool
+    experimental: bool = False
 
 
 @app.get("/health")

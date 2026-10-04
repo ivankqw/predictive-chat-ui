@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
+from pathlib import Path
 from threading import Lock
 from time import perf_counter
 from typing import Final
+
+from pilot_policy import QUESTIONS as PILOT_QUESTIONS
 
 
 INTENTS: Final = ("calendar", "checklist", "compare", "draft_message", "none")
@@ -14,6 +17,14 @@ MODEL_REPOSITORY: Final = "convaiinnovations/laya"
 MODEL_REVISION: Final = "55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851"
 MODEL_SHA256: Final = "891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c"
 MODEL_NAME: Final = f"{MODEL_REPOSITORY}@{MODEL_REVISION}:english"
+PILOT_DIGESTS: Final = {
+    "model.safetensors": "239d257d21e23f74bc3928e6558ace98e35fa3b26866f802f33c111cd69f8b12",
+    "rl_agent_config.json": "d8640121db50edbd83aea1c6177143a35aa5b64ab56327b81d87b275b564cb50",
+    "encoder/config.json": "aac9925108ab931a457eafb081604db34de9edffa44936b5d84f74d979c4ba56",
+    "tokenizer/tokenizer.json": "6c8aaa9a542084f2457eab775d4eeb51f92a70c0fd9de28d5edb0ddec3c08d30",
+    "tokenizer/tokenizer_config.json": "2966a59b9e9cf122279aec1249e22e5bc7ad8430c754e95031b13fd128d4e560",
+    "tokenizer/special_tokens_map.json": "ea97ecdbcc73713039d8d64dbb05e3689495c96657fbd9a18f5bed381be81049",
+}
 
 # These are uncalibrated output scores. The gate reduces low-separation suggestions.
 MIN_TOP_SCORE: Final = 0.45
@@ -54,12 +65,14 @@ class Decision:
     model: str
     decision_ms: float
     abstained: bool
+    experimental: bool = False
 
 
 class LayaDecisionProvider:
     """Loads the pinned checkpoint once and makes one typed choice per request."""
 
-    def __init__(self) -> None:
+    def __init__(self, checkpoint_path: str | None = None) -> None:
+        self._checkpoint = Path(checkpoint_path).expanduser().resolve() if checkpoint_path else None
         self._router = None
         self._load_lock = Lock()
         self._failure: str | None = None
@@ -84,11 +97,20 @@ class LayaDecisionProvider:
                 from laya import Router
 
                 device = "mps" if torch.backends.mps.is_available() else "cpu"
-                self._router = Router(
-                    device=device,
-                    revision=MODEL_REVISION,
-                    sha256_digests={"english": {"model.safetensors": MODEL_SHA256}},
-                )
+                if self._checkpoint is not None:
+                    if not self._checkpoint.is_dir():
+                        raise FileNotFoundError("The local pilot checkpoint directory does not exist.")
+                    self._router = Router(
+                        device=device,
+                        models={"english": str(self._checkpoint)},
+                        sha256_digests={"english": PILOT_DIGESTS},
+                    )
+                else:
+                    self._router = Router(
+                        device=device,
+                        revision=MODEL_REVISION,
+                        sha256_digests={"english": {"model.safetensors": MODEL_SHA256}},
+                    )
             except Exception as error:  # Boundary converts dependency/model errors to service state.
                 self._failure = type(error).__name__
                 raise ProviderUnavailable("The local Laya decision model is unavailable.") from error
@@ -103,12 +125,14 @@ class LayaDecisionProvider:
             state_tokens = len(encode_text(agent.tok, text, add_special_tokens=False)["input_ids"])
             state_budget = int(agent.cfg.get("max_len", 512)) - int(agent.cfg.get("head_max_len", 192)) - 8
         except Exception as error:
+            self._failure = type(error).__name__
             raise ProviderUnavailable("The local Laya decision model could not validate the input.") from error
         if state_tokens > state_budget:
             raise InputTooLong(f"Draft has {state_tokens} state tokens; limit is {state_budget}.")
         started = perf_counter()
         try:
-            result = self._router.predict(text, QUESTIONS, model="english")
+            questions = PILOT_QUESTIONS if self._checkpoint else QUESTIONS
+            result = self._router.predict(text, questions, model="english")
             answer = result["answers"]["tool_suggestion"]
             probabilities = answer["probabilities"]
             selected = str(answer["choice"])
@@ -133,7 +157,8 @@ class LayaDecisionProvider:
             intent="none" if abstained else selected,
             scores=scores,
             provider="laya",
-            model=MODEL_NAME,
+            model="predictive-workspace-laya-20261001:calibrated" if self._checkpoint else MODEL_NAME,
             decision_ms=elapsed_ms,
             abstained=abstained,
+            experimental=self._checkpoint is not None,
         )

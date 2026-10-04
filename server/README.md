@@ -65,3 +65,28 @@ The frozen held-out HTTP evaluation is stored in `docs/experiment/heldout-result
 ## Legacy chat server
 
 `main.py` remains the existing optional chat and older intent-detection server. It is separate from the decision service. Its Groq configuration and legacy setup have not been verified for this predictive workspace. Do not use it as a decision fallback.
+
+## Try the local fine-tuned checkpoint
+
+The base model remains the default. To opt into the saved pilot, extract its `calibrated` directory outside this repository. Start the service with an explicit path:
+
+```bash
+LOCAL_LAYA_CHECKPOINT=/absolute/path/to/pilot/calibrated \
+  .venv-decision/bin/python decision_app.py
+```
+
+Restart without `LOCAL_LAYA_CHECKPOINT` to return to the base model. The service never downloads a substitute for a missing local directory. It verifies the pilot weights, root configuration, encoder configuration, and tokenizer files against pinned SHA-256 digests before loading them. This option accepts the saved 2026-10-01 pilot, not arbitrary checkpoints.
+
+The pilot uses its frozen training question and option descriptions from `pilot_policy.py`. This policy permits recognizable task shorthand, including typos. The base model retains its original explicit-request policy. Comparing these modes compares both checkpoint and policy, not weights alone.
+
+The API identifies the pilot as `predictive-workspace-laya-20261001:calibrated` and returns `experimental: true`. The browser marks the fine-tune as experimental beside Prediction details. All tool controls remain editable and require explicit user actions.
+
+This opt-in experiment uses the existing diagnostic gate, with a minimum top score of 0.45 and margin of 0.15. The pilot's stricter validation-selected gate produced zero suggestion coverage. The diagnostic gate is not validated for production. It exposed quotation false positives during the synthetic pilot evaluation. These probabilities include temperature scaling fit on the separate calibration split, but they do not establish calibration on real user drafts. Do not treat a suggested tool as authorization to execute it.
+
+Run provider integration checks without loading weights:
+
+```bash
+.venv-decision/bin/python -m pytest -q test_decision_app.py test_checkpoint_provider.py
+```
+
+These checks verify default selection, local configuration, pinned digests, policy choice, experiment provenance, and missing-directory failure. They use simulated model output and do not measure model quality.

@@ -25,7 +25,7 @@ def test_decision_contract(monkeypatch):
     assert response.status_code == 200
     assert response.json() == {
         "request_id": 7, "intent": "compare", "scores": {"calendar": 0.01, "checklist": 0.02, "compare": 0.9, "draft_message": 0.03, "none": 0.04},
-        "provider": "laya", "model": "test-model", "decision_ms": 12.5, "abstained": False,
+        "provider": "laya", "model": "test-model", "decision_ms": 12.5, "abstained": False, "experimental": False,
     }
 
 

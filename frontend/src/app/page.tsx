@@ -54,6 +54,7 @@ interface DecisionResponse {
   model: string;
   decision_ms: number;
   abstained: boolean;
+  experimental: boolean;
 }
 
 interface CalendarDraft { source: string; title: string; date: string; startTime: string; endTime: string; location: string; description: string }
@@ -82,7 +83,7 @@ function parseDecision(value: unknown, requestId: number): DecisionResponse {
     scores[key] = incomingScores[key] as number;
   }
   scores.none = typeof incomingScores.none === 'number' && Number.isFinite(incomingScores.none) ? incomingScores.none : 0;
-  return { request_id: requestId, intent: candidate.intent, scores, provider: candidate.provider, model: candidate.model, decision_ms: candidate.decision_ms, abstained: candidate.abstained };
+  return { request_id: requestId, intent: candidate.intent, scores, provider: candidate.provider, model: candidate.model, decision_ms: candidate.decision_ms, abstained: candidate.abstained, experimental: candidate.experimental === true };
 }
 
 function escapeIcsText(value: string) {
@@ -358,7 +359,7 @@ export default function Home() {
       <div className="suggestion-line" aria-live="polite">{suggestionVisible && prediction && topIntent ? <div className="suggestion"><span className="suggestion-icon"><Sparkles size={15} /></span><div className="suggestion-copy"><strong>{intentLabels[topIntent]} suggested</strong><span>{toolMeta[topIntent].description}</span></div><button type="button" className="suggestion-action" onClick={() => openTool(topIntent)}>Open <ArrowUpRight size={14} /></button><button type="button" className="suggestion-dismiss" onClick={dismissSuggestion} aria-label="Dismiss tool suggestion"><X size={15} /></button></div> : decisionState === 'loading' && draft.trim() ? <div className="prediction-note"><LoaderCircle size={13} className="spin" /> Finding a useful local tool…</div> : decisionState === 'error' && draft.trim() ? <div className="prediction-note error" role="status"><span>Local suggestion unavailable. {decisionError || 'You can still use Tools.'}</span><button type="button" onClick={() => setToolsOpen(true)}>Open tools</button></div> : prediction && (prediction.intent === 'none' || prediction.abstained) ? <div className="prediction-note"><span>{prediction.abstained ? 'No clear local tool for this draft.' : 'No local tool suggested.'}</span><button type="button" onClick={() => setToolsOpen(true)}>Browse tools</button></div> : null}</div>
       <form className="composer" onSubmit={sendToChat}><div className="composer-topline"><label htmlFor="message-draft">Message</label><span>{draft.length ? `${draft.length}/600` : 'Shift + Enter for a new line'}</span></div><textarea id="message-draft" ref={inputRef} value={draft} maxLength={600} onChange={(event) => setDraft(event.target.value)} onCompositionStart={() => { composingRef.current = true; }} onCompositionEnd={() => { composingRef.current = false; setCompositionTick((tick) => tick + 1); }} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing && !composingRef.current) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } }} placeholder="Type a message…" rows={1} aria-describedby="composer-help" /><div className="composer-bottom"><span id="composer-help" className="composer-help">Prediction stays local. Sending shares recent messages with {chatStatus?.provider || 'the assistant provider'}.</span><div className="composer-controls"><button type="button" className="tools-button" onClick={() => { setToolsOpen((open) => !open); if (activeTool) setActiveTool(null); }} aria-expanded={toolsOpen}>{toolsOpen ? 'Hide tools' : 'Tools'}<span className="tool-count">4</span></button><button type="submit" className="send-button" disabled={!draft.trim() || chatBusy || chatStatusState !== 'ready' || !chatStatus?.available}>{chatBusy ? <LoaderCircle size={16} className="spin" /> : <Send size={16} />}<span>{chatBusy ? 'Sending…' : 'Send'}</span></button></div></div></form>
       {chatStatusState === 'ready' && !chatStatus?.available && <p className="configuration-note" role="status">Assistant is not configured. Set <code>OPENAI_API_KEY</code> on the server and restart. Local tools remain available.</p>}{chatStatusState === 'error' && <p className="configuration-note" role="status">Assistant status could not be checked. <button type="button" onClick={() => setStatusRetry((current) => current + 1)}>Try again</button></p>}
-      <footer className="chat-footer"><span>Local tools stay in this browser</span>{prediction && <details><summary>Prediction details</summary><span>{prediction.provider} · {prediction.model} · {roundtripMs === null ? '—' : `${roundtripMs} ms`}</span></details>}</footer>
+      <footer className="chat-footer"><span>{prediction?.experimental ? "Experimental fine-tune · review every suggestion" : "Local tools stay in this browser"}</span>{prediction && <details><summary>Prediction details</summary><span>{prediction.provider} · {prediction.model} · {roundtripMs === null ? '—' : `${roundtripMs} ms`}</span></details>}</footer>
     </div>
   </section></main>;
 }
