@@ -1,0 +1,18 @@
+{
+  "seed": 42,
+  "source_sha256": "e4ebf25df6188836458e7825bf89541cc5a39ff1ae7629d2aa8ab6690772a381",
+  "files": {
+    "train.jsonl": "69d7b3c37faa2c4b7b0232bfcb79d44bc951d6260fc72a842d4afe1dd9e8f78f",
+    "validation.jsonl": "922628960b52ccedeafeef07c163221db360ef7159d0a5136c110c22f9da86af",
+    "calibration.jsonl": "bfdf35437ea3352aa76b1e75fc718940f00248bb4805af4e90cd92c4548ce48c",
+    "test.jsonl": "150b3e41fa3c69a0db7d1ed3ab36e8d25e87991d7c4b98396b68ad949adb82cc"
+  },
+  "policy_sha256": "c163f742f7c9deb1dea0f4683b05c724de5cce0a0514fd05fc5e91e615346341",
+  "counts": {
+    "train": 141,
+    "validation": 47,
+    "calibration": 47,
+    "test": 47
+  },
+  "status": "frozen synthetic pilot; authored examples, not real-user validation"
+}

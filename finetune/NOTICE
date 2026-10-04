@@ -1,0 +1,7 @@
+The choice-task training loss and checkpoint export in runtime.py are adapted
+from Laya by Convai Innovations / NandhaKishorM, under Apache License 2.0.
+Source notebook commit: 6d942c92081fbc139e736bbd9ac0023223c29b7f.
+Changes include app-specific data and policy, grouped frozen splits, separate
+calibration and gate selection, single-GPU support, smaller batches, bounded
+serving-compatible temperature fitting, and disabled publication.
+See UPSTREAM-LICENSE for the upstream license.

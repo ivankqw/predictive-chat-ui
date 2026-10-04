@@ -1,0 +1,7 @@
+Prepare Laya adaptation for the predictive workspace's five tool choices. Shorthand such as “lunch with Tom” currently abstains; the experimental policy permits recognizable task shorthand while retaining none for incomplete prefixes, negations, topic-only questions and quoted requests.
+
+Adds 282 explicitly synthetic examples with frozen scenario-isolated train/validation/calibration/test splits, pinned base-weight verification, RLCD plus cross-entropy training, separate calibration, serving-loader reload checks, validation-only gates and before/after reports. The Colab notebook provides a one-GPU memory probe and leaves full training disabled. The production question, thresholds and model remain unchanged.
+
+Validation: 11 preparation tests; full offline tiny-checkpoint train/calibrate/reload/evaluation smoke; 3 existing backend contract tests; frontend lifecycle/ICS and chat route suites. Frontend production build, Python compilation and diff checks pass. Backend tests require execution outside the restricted sandbox. No GPU training or real-checkpoint evaluation was run: the cloud proxy blocks Hugging Face. A Colab session and DDP remain unexecuted, and synthetic labels need an independent human audit. No accuracy/latency improvement is claimed.
+
+Based on the app branch codex/14-predictive-workspace and draft PR #15. Proposed PR base is that branch so this review contains only preparation changes. GitHub API access is blocked in the current environment; issue creation and independent Impstack review lanes are outstanding.

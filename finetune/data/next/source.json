@@ -1,0 +1,8 @@
+{
+  "candidate_pool_sha256": "829adc0f9c7f8bb4ce934ee08864d84cb31c7222a98da9cfda261852b64e758a",
+  "selection": "First eight rows per candidate source label, reviewed by actual text; convenience sample, not representative.",
+  "upstream": "https://github.com/clinc/oos-eval",
+  "revision": "828f8093932c8fe6ca7936c3d2e52903b1c523de",
+  "attribution": "Larson et al., An Evaluation Dataset for Intent Classification and Out-of-Scope Prediction, EMNLP 2019. https://aclanthology.org/D19-1131/",
+  "changes": "Original text preserved; agent workspace labels, exclusion reasons and leakage groups added."
+}

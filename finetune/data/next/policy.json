@@ -1,0 +1,19 @@
+{
+  "version": "proactive-v2-draft",
+  "status": "annotation proposal; not active in training or serving",
+  "instructions": "Suggest one non-executing editable workspace tool for the user's current intent. Recognizable shorthand and typos can support a suggestion. A quoted or reported request alone is not current intent. Explicit adoption of quoted content can support a suggestion. Follow the last clear correction. Abstain on unfinished conditions that could reverse intent. Retrieval of existing external state is unsupported. Message requests authorize an editable draft only, never sending.",
+  "labels": {
+    "calendar": "A new event draft with a named activity, or event shorthand with activity and person or time.",
+    "checklist": "A new task list or task reminder draft with recognizable task content. This does not schedule a notification.",
+    "compare": "An explicit comparison request or recognizable X versus Y draft naming alternatives.",
+    "draft_message": "A composition request or recipient plus communicative purpose. Mentioning alternatives inside a message does not imply a comparison tool.",
+    "none": "No supported current draft task; includes discussion, unadopted quotations, existing-state queries, withdrawn requests and insufficient fragments."
+  },
+  "exclude_pending_policy": [
+    "Removal or replacement of existing list items without their state",
+    "Deleting or editing unspecified existing events",
+    "Conditional notifications the tools cannot represent",
+    "Preference questions without clear comparison intent"
+  ],
+  "deployment_rule": "Adopt this policy in training prompts and serving prompts together, then recalibrate and evaluate. Do not reuse proactive-v1 thresholds or metrics as evidence for v2."
+}
