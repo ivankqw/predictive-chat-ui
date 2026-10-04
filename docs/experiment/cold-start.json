@@ -1,0 +1,19 @@
+{
+  "http_ms": 6410.093,
+  "response": {
+    "request_id": 0,
+    "intent": "none",
+    "scores": {
+      "calendar": 0.3419,
+      "checklist": 0.0658,
+      "compare": 0.1392,
+      "draft_message": 0.1555,
+      "none": 0.2975
+    },
+    "provider": "laya",
+    "model": "convaiinnovations/laya@55cf4c4ebb4ebe31b2550e8bdf3bd21b99753851:english",
+    "decision_ms": 457.236,
+    "abstained": true
+  },
+  "note": "First request after service start with existing Hugging Face cache; excludes original model download."
+}

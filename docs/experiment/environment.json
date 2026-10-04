@@ -1,0 +1,10 @@
+{
+  "laya": "0.3.21",
+  "torch": "2.14.0",
+  "transformers": "5.17.0",
+  "huggingface_hub": "1.33.0",
+  "fastapi": "0.129.0",
+  "uvicorn": "0.41.0",
+  "safetensors": "0.8.0",
+  "python": "3.12.7 (main, Oct  1 2024, 02:05:46) [Clang 16.0.0 (clang-1600.0.26.3)]"
+}

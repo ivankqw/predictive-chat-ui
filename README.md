@@ -1,78 +1,58 @@
-# Vibes Chat Interface
+# Predictive workspace
 
-This project is a dynamic prompt UI chat interface that aims to create a more "vibey" and fluid user experience.
+A chat composer that suggests a useful tool while you type. The available tools are an event draft, checklist, comparison table, and message draft.
 
-## Project Structure
+This revives a small-model hackathon project. The original used Groq to generate JSON for scheduling intent and event details. This experiment uses a local Laya decision model to select a tool. The tools themselves are ordinary editable UI.
 
-- `vibes-chat-interface`: Next.js frontend 
-- `vibes-server`: FastAPI backend
+## Run locally
 
-## Features
+Use Node.js 20.9 or newer and Python 3.12. The repository pins 3.12.13; this experiment was tested with the installed 3.12.7 interpreter.
 
-- Basic chat interface with message history
-- Real-time intent detection as the user types
-- Dynamic calendar event form that appears when scheduling intent is detected
-- Integration with Groq LLM API for chat and intent detection
+Start the decision service:
 
-## Setup Instructions
+```bash
+cd server
+python3.12 -m venv .venv-decision
+.venv-decision/bin/python -m pip install -r requirements-decision.txt
+.venv-decision/bin/python decision_app.py
+```
 
-### Backend Setup (vibes-server)
+In another terminal, set `OPENAI_API_KEY` in your shell or an untracked `frontend/.env.local` file. Chat uses `gpt-4.1-mini` by default; set `CHAT_MODEL` to change it. The key stays on the server.
 
-1. Navigate to the backend directory:
-   ```
-   cd vibes-server
-   ```
+Start the frontend:
 
-2. Create a virtual environment (optional but recommended):
-   ```
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
+```bash
+cd frontend
+npm ci
+npm run dev -- --port 3014
+```
 
-3. Install dependencies:
-   ```
-   pip install -r requirements.txt
-   ```
+Open http://localhost:3014. The frontend calls the local service at `http://127.0.0.1:8014/api/decision`. Set `DECISION_BACKEND_URL` to override that full endpoint URL.
 
-4. Create a `.env` file:
-   ```
-   cp .env.example .env
-   ```
-   Update the `.env` file with your actual API keys if needed.
+The first prediction downloads and loads the pinned model. Later predictions reuse it. Model files are cached by Hugging Face. No API key is needed. After the download, decision inference runs locally. The frontend sends your draft to your local backend.
 
-5. Start the backend server:
-   ```
-   python main.py
-   ```
-   The server will run on http://localhost:8000
+## What the model does
 
-### Frontend Setup (vibes-chat-interface)
+Laya chooses one label: `calendar`, `checklist`, `compare`, `draft_message`, or `none`. The server applies a declared score and margin threshold before offering a suggestion. These scores have not been calibrated on this task.
 
-1. Navigate to the frontend directory:
-   ```
-   cd vibes-chat-interface
-   ```
+A suggestion does not execute an action. Open or dismiss it, or choose a tool yourself. Tools keep your edits independently of new predictions. Event files and copied text require explicit clicks. The local tools do not send messages or write to a calendar account. The separate Send action sends the conversation to OpenAI for a chat reply.
 
-2. Install dependencies:
-   ```
-   npm install
-   ```
+The model does not generate the form, populate missing event details, or write message prose. Manual controls remain available if inference fails.
 
-3. Start the development server:
-   ```
-   npm run dev
-   ```
-   The frontend will run on http://localhost:3000
+## Jev and System One
 
-## How It Works
+[Jev](https://docs.typesafe.ai/concepts/system-one) prompted this experiment. It returns bounded decisions rather than generated prose. We do not have Jev access, so this repository uses [Laya](https://github.com/NandhaKishorM/laya), an available open-weight decision model. This is not a Jev integration or a claim of equivalent quality, training, or speed.
 
-1. As the user types in the chat input, the text is sent to the backend for intent detection
-2. If the system detects that the user is trying to schedule a calendar event (with high confidence), a calendar form appears
-3. The form is progressively filled with details as they are detected from the user's input
-4. The user can continue typing to add more details or send the message to get a response from the assistant
+Development probes found unwanted suggestions for explicit negations. A high score does not guarantee that a tool is appropriate. Treat this as an experiment in predictive interaction, not an autonomous action system.
 
-## Future Features
+See [the decision service documentation](server/README.md) for the pinned checkpoint, API, tests, and limitations. Evaluation evidence is recorded under `docs/experiment/`.
 
-- More intent types beyond calendar events
-- More interactive UI elements based on detected intents
-- "Vibey" flow state interactions with animations
+## Chat and tool suggestions
+
+The interface continues the original chat thread and bottom composer. Laya selects a suggested tool while you type. Opening a suggestion leaves your conversation and draft in place. Manual tools remain available.
+
+Send uses the server-side OpenAI chat route. It does not invoke Laya or execute a tool. Without `OPENAI_API_KEY`, the interface explains how to enable chat; local tools still work. Failed requests keep the draft for retry. Conversations and tool edits are held in memory and reset on page reload.
+
+The historical `server/main.py` Groq backend remains for reference. Its old model configuration is not used by this interface.
+
+Run `npm run test:frontend`, `npm run test:chat`, and `npm run build` from `frontend` to check the current application.
